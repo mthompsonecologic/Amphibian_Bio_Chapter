@@ -1,0 +1,1198 @@
+---
+title: "Amphibian_Biology"
+author: "MThompson"
+date: "2024-03-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Libraries
+
+
+```{r Libraries}
+
+list.of.packages <- c(
+  "stringr",
+  "here",
+  "terra",
+  "future",
+  "class",
+  "reshape",
+  "ggplot2",
+  "sf",
+  "XML",
+  "exiftoolr",
+  "curl",
+  "RCurl",
+  "httr",
+  "ncdf4",
+  "future",
+  "rsi",
+  "rstac",
+  "doParallel",
+  "usethis"
+)
+
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+
+if(length(new.packages) > 0){
+  install.packages(new.packages, dep=TRUE)
+}
+
+#loading packages
+for(package.i in list.of.packages){
+  suppressPackageStartupMessages(
+    library(
+      package.i, 
+      character.only = TRUE
+    )
+  )
+}
+
+#Developer version needed
+#install.packages("terra", repos = "https://rspatial.r-universe.dev")
+#library(terra)
+
+# Local
+install.packages(paste0(here("Inputs","ClimateNA"),"/ClimateNAr_1.2.0.zip"),
+                 repos = NULL,
+                 type = "win.binary")
+library(ClimateNAr)
+n.cores <- future::availableCores() - 1
+
+```
+
+## Spatial data
+
+
+## EcoZones and BEC polygons processing
+
+
+```{r spatial_dat, echo=FALSE}
+
+# Pull in Biogeoclimatic spatial info from BC and Yukon
+BEC1 <- vect(paste0(here("Inputs","Shapefiles"),
+                    "/BEC_POLY_polygon.shp"))
+BEC2 <- vect(paste0(here("Inputs","Shapefiles"),
+                    "/BEC_POLY_polygon.shp"))
+BEC3 <- vect(paste0(here("Inputs","Shapefiles"),
+                    "/YukonBEC_Vect.shp"))
+
+EcoZone <- vect(paste0(here("Inputs","Shapefiles"),
+                       "/Chapter_EcoZone.shp"))
+
+EcoZone <- terra::project(EcoZone,
+                          "EPSG:32610")
+
+
+BEC3 <- project(BEC3,
+                EcoZone)
+BEC3 <- mask(BEC3,
+             EcoZone)
+BEC3 <- crop(BEC3,
+             EcoZone)
+
+writeVector(BEC3,
+            paste0(here("Inputs","Shapefiles"),
+                   "/YukonBEC_Vect_EcoZone2.shp"),
+            overwrite=TRUE)
+
+BEC2 <- project(BEC2,
+                EcoZone)
+BEC2 <- mask(BEC2,
+             EcoZone)
+BEC2 <- crop(BEC2,
+             EcoZone)
+
+writeVector(BEC2,
+            paste0(here("Inputs","Shapefiles"),
+                   "/BC_BEC_Vect_EcoZone.shp"),
+            overwrite=TRUE)
+
+# To QGIS to fin the mapping
+#BECx <- merge(BEC2,BEC3) 
+
+# Clip Canada freshwater
+# Source: https://open.canada.ca/data/en/dataset/d0cdef71-9343-46c3-b2e7-c1ded5907686
+
+Freshwater <- vect(paste0(here(here("Inputs","Shapefiles")),
+                          "/lhy_000c16a_e.shp"))
+Freshwater <- project(Freshwater,
+                      "EPSG:32610")
+Freshwater <- crop(Freshwater,
+                   EcoZone)
+
+writeVector(Freshwater,
+            paste0(here("Inputs","Shapefiles"),
+                   "/Freshwater_Gov.shp"),
+            overwrite=TRUE)
+
+#########################################
+# Convert amphibian records to shapefiles
+# read coordinates with getKMLcoordinates()
+
+Amac <- st_read(paste0(here("Inputs","Shapefiles","AmphibiaWeb_data"),
+                          "/Amacro.kml"))
+Amac <- vect(Amac)
+writeVector(Amac,
+            paste0(here("Inputs","Shapefiles","AmphibiaWeb_data"),
+                       "/Amacro.shp"),
+            overwrite=TRUE)
+
+# Calling in data from gpx
+
+gpx_parsed <- htmlTreeParse(file = paste0(here("Inputs","AmphibianLocations"),
+                                          "/Lawyers_Wildlife_MDT.gpx"),
+                            useInternalNodes = TRUE)
+
+coords <- xpathSApply(doc = gpx_parsed, path = "//wpt", fun = xmlAttrs)
+elevation <- xpathSApply(doc = gpx_parsed, path = "//wpt/ele", fun = xmlValue)
+
+df <- data.frame(
+  lat = as.numeric(coords["lat", ]),
+  lon = as.numeric(coords["lon", ]),
+  elevation = as.numeric(elevation)
+)
+
+############################################
+# Obtaining coordinates from image records
+
+install_exiftool()
+file_names <- list.files(here("Inputs","AmphibianLocations"),
+                         pattern = "*.jpg", full.names=TRUE)
+
+figls <- list()
+
+for(i in 1:length(file_names)){
+  figls[[i]] <- exif_read(path = file_names[i],
+                        tags=c("GPSDateStamp",
+                               "GPSLatitude",
+                               "GPSLongitude"))
+}
+
+# Some images do not have the data
+# 1,12 miss Date, lat, lon
+figls[[1]][,c(2:4)] = NA
+colnames(figls[[1]]) = c("SourceFile",
+                         "GPSDateStamp",
+                         "GPSLatitude",
+                         "GPSLongitude")
+figls[[12]][,c(2:4)] = NA
+colnames(figls[[12]]) = c("SourceFile",
+                          "GPSDateStamp",
+                          "GPSLatitude",
+                          "GPSLongitude")
+
+# 6:8,10, miss date
+figls[[6]][,c(3:4)] = figls[[6]][,c(2:3)]
+figls[[6]][,2] = NA
+colnames(figls[[6]]) = c("SourceFile",
+                         "GPSDateStamp",
+                         "GPSLatitude",
+                         "GPSLongitude")
+
+figls[[7]][,c(3:4)] = figls[[7]][,c(2:3)]
+figls[[7]][,2] = NA
+colnames(figls[[7]]) = c("SourceFile",
+                         "GPSDateStamp",
+                         "GPSLatitude",
+                         "GPSLongitude")
+figls[[8]][,c(3:4)] = figls[[8]][,c(2:3)]
+figls[[8]][,2] = NA
+colnames(figls[[8]]) = c("SourceFile",
+                         "GPSDateStamp",
+                         "GPSLatitude",
+                         "GPSLongitude")
+
+figls[[10]][,c(3:4)] = figls[[10]][,c(2:3)]
+figls[[10]][,2] = NA
+colnames(figls[[10]]) = c("SourceFile",
+                         "GPSDateStamp",
+                         "GPSLatitude",
+                         "GPSLongitude")
+
+fig_df <- do.call(rbind.data.frame, figls)
+
+fig_df[12,2] = "2023:6:13"
+fig_df[12,3] = "57.385949"
+fig_df[12,4] = "-127.245555"
+
+# Palmer toad
+fig_df[1,2] = "2022:9:10"
+fig_df[1,3] = "57.346881"
+fig_df[1,4] = "-127.148412"
+
+figls[[i]] <- exif_read(path = file_names[i],
+                        tags=c("GPSDateStamp",
+                               "GPSLatitude",
+                               "GPSLongitude"))
+fig_df[6,2] = "2023:6:13"
+
+fig_df[1] <- list.files(here("Amphibian Database_MDT","New"),
+                        pattern = "*.jpg")
+fig_df[c(6:8),2] <- "2023:06:26"
+fig_df[10,2] <- "2023:06:27"
+fig_df[,3] <- as.numeric(fig_df[,3])
+fig_df[,4] <- as.numeric(fig_df[,4])
+fig_df$species <- c("ANBO"
+                    ,"ANBO",
+                    "ANBO",
+                    "ANBO",
+                    "ANBO",
+                    "RALU",
+                    "RALU",
+                    "RALU",
+                    "ANBO",
+                    "RALU",
+                    "ANBO",
+                    "RALU")
+fig_df$stage <- c("adult",
+                  "tadpole",
+                  "tadpole",
+                  "tadpole",
+                  "tadpole",
+                  "adult",
+                  "adult",
+                  "adult",
+                  "tadpole",
+                  "adult",
+                  "adult",
+                  "adult")
+
+fig_df <- as.data.frame(fig_df)
+
+Amphibians <- terra::vect(fig_df,geom=c("GPSLongitude",
+                                 "GPSLatitude"),
+                   crs="epsg:32610")
+
+Amphibians <- project(Amphibians, "epsg:32610")
+
+writeVector(Amphibians,
+            paste0(here("Inputs","AmphibianLocations"),
+                   "/Amphibians_Layers.shp"),
+            overwrite=TRUE)
+```
+
+# Obtain the Canada DEM
+
+```{r DEM, echo=FALSE}
+
+
+###############################################
+# Canada DEM download for distribution models
+Sheets <- c("082",
+            "083",
+            "084",
+            "092",
+            "093",
+            "094",
+            "095",
+            "096",
+            "104",
+            "105",
+            "106",
+            "114",
+            "115",
+            "116",
+            "117")
+
+
+for(i in 1:length(Sheets)){
+  URL = paste0("ftp.maps.canada.ca/pub/nrcan_rncan/elevation/cdem_mnec/"
+               ,Sheets[i],
+               "/")
+  filenames <- getURL(URL,
+                      dirlistonly = TRUE)
+  files <- unlist(strsplit(filenames,
+                           '\r\n'))
+  files_full <- paste0(here("DEM","CDEM"),
+                       "/",
+                       files)
+  
+  for(r in 1:length(files_full)){
+    download.file(paste0(URL,files[r]),
+                  destfile = files_full[r],
+                  method="libcurl")
+  }
+  }
+
+# Extract the Zipfiles:
+zipfiles <- dir(here("DEM","CDEM"),
+                pattern="\\D_tif.zip$",
+                full.names=TRUE)
+
+for(i in 1:length(zipfiles)){
+    unzip(zipfiles[i],
+          exdir = here("DEM","CDEM"),
+          overwrite = FALSE)
+}
+
+# Hijmans described:
+# https://stackoverflow.com/
+# 70946870
+
+DEM_dir <- dir(here("Inputs","Rasters","CDEM"),
+                 full.names=TRUE,
+                 pattern="cdem_dem_\\d{2,}\\D.tif$")
+
+DEM_rasts <- vrt(DEM_dir)
+
+# Run each ecozone (1-3) separately
+EcoZonet <- project(EcoZone,
+                    DEM_rasts)
+DEM_rasts1 <- crop(DEM_rasts,
+                   EcoZonet[1,])
+DEM_rasts2 <- crop(DEM_rasts,
+                   EcoZonet[2,])
+DEM_rasts3 <- crop(DEM_rasts,
+                   EcoZonet[3,])
+
+newcrs="epsg:3005"
+n.cores <- future::availableCores() - 1
+
+DEM_rasts1 <- project(DEM_rasts1,
+                      newcrs,
+                      method="cubicspline",
+                      filename=paste0(here("Inputs","Rasters","CDEM"),
+                                      "/DEM_rasts1.tif"),
+                      threads=n.cores,
+                      overwrite=TRUE,
+                      res=20
+)
+
+DEM_rasts2 <- project(DEM_rasts2,
+                      newcrs,
+                      method="cubicspline",
+                      filename=paste0(here("Inputs","Rasters","CDEM"),
+                                      "/DEM_rasts2.tif"),
+                      threads=n.cores,
+                      overwrite=TRUE,
+                      res=20
+)
+
+DEM_rasts3 <- project(DEM_rasts3,
+                      newcrs,
+                      method="cubicspline",
+                      filename=paste0(here("Inputs","Rasters","CDEM"),
+                                      "/DEM_rasts3.tif"),
+                      threads=n.cores,
+                      overwrite=TRUE,
+                      res=20
+)
+
+# Apply approach
+#f <- lapply(DEM_rasts,
+#            terra::rast)
+#f <- sprc(f)
+#f.mosaic <- mosaic(f, fun="mean")
+
+# I ran m and f.mosaic above using
+# the slow and fast methods respectively.
+# This created a southern (f.mosaic) and
+# northern part. I kept them apart to
+# keep the projection processing manageable.
+
+# Simplify to remove inner lines for mask
+Ecodis <- aggregate(EcoZone)
+
+DEM_rastsm1 <- mask(DEM_rasts1,
+                    Ecodis,
+                    threads=n.cores)
+
+writeRaster(DEM_rastsm1,
+            paste0(here("Inputs","Rasters","CDEM"),
+                   "/DEM_rastsm1.tif"),
+            overwrite=TRUE)
+
+DEM_rastsm2 <- mask(DEM_rasts2,
+                    Ecodis,
+                    threads=n.cores)
+
+writeRaster(DEM_rastsm2,
+            paste0(here("Inputs","Rasters","CDEM"),
+                   "/DEM_rastsm2.tif"),
+            overwrite=TRUE)
+
+DEM_rastsm3 <- mask(DEM_rasts3,
+                    Ecodis,
+                    threads=n.cores)
+
+writeRaster(DEM_rastsm3,
+            paste0(here("Inputs","Rasters","CDEM"),
+                   "/DEM_rastsm3.tif"),
+            overwrite=TRUE)
+
+DEM_rastsm1 <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                           "/DEM_rastsm1.tif"))
+
+DEM_rastsm2 <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                           "/DEM_rastsm2.tif"))
+
+DEM_rastsm3 <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                           "/DEM_rastsm3.tif"))
+
+DEM_rastsm123 <- dir(here("Inputs","Rasters","CDEM"),
+                     pattern="DEM_rastsm\\d.tif$",
+                     full.names=TRUE)
+
+v <- vrt(DEM_rastsm123)
+CDEM_full <- writeRaster(v,
+                         paste0(here("Inputs","Rasters","CDEM"),
+                                "/CDEM_total.tif"),
+                         overwrite=TRUE)
+
+CDEM_full <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                         "/CDEM_total.tif"))
+
+EcoZone <- project(EcoZone,
+                   CDEM_full)
+
+## The challenge: Using UTM conversions
+## from far northern extents do not
+## always proceed well in reprojection.
+## I had to iterate through projections
+## to bring all into one projection.
+
+# Patchwork fix:
+#105I-J, 117, 106G, and 095L missed
+
+d095L <- rast(DEM_dir[108])
+d095L <- project(d095L,
+                 "EPSG:3005",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d095L.tif")
+                 )
+
+d105I <- rast(DEM_dir[151])
+d105I <- project(d105I,
+                 "EPSG:3005",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d105I.tif")
+)
+
+d106G <- rast(DEM_dir[165])
+d106G <- project(d106G,
+                 "EPSG:3005",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d106G.tif")
+                 )
+
+d117A <- rast(DEM_dir[202])
+d117A <- project(d117A,
+                 "EPSG:32610",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d117A.tif")
+                 )
+
+d117A2 <- project(d117A,
+                  "EPSG:3005",
+                  threads=n.cores,
+                  res=20,
+                  filename=paste0(here("Inputs","Rasters","CDEM"),
+                                  "/d117A2.tif")
+)
+
+
+d117B <- rast(DEM_dir[203])
+d117B <- project(d117B,
+                 "EPSG:32610",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d117B.tif")
+                 )
+d117B2 <- project(d117B,
+                  "EPSG:3005",
+                  threads=n.cores,
+                  res=20,
+                  filename=paste0(here("Inputs","Rasters","CDEM"),
+                                  "/d117B2.tif")
+)
+
+d117C <- rast(DEM_dir[204])
+d117C <- project(d117C,
+                 "EPSG:32610",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d117C.tif")
+                 )
+d117C2 <- project(d117C,
+                  "EPSG:3005",
+                  threads=n.cores,
+                  res=20,
+                  filename=paste0(here("Inputs","Rasters","CDEM"),
+                                  "/d117C2.tif")
+)
+
+d117D <- rast(DEM_dir[205])
+d117D <- project(d117D,
+                 "EPSG:32610",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d117D.tif")
+                 )
+d117D2 <- project(d117D,
+                 "EPSG:3005",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d117D2.tif")
+)
+
+d103P <- rast(paste0(here("Inputs","Rasters","CDEM",
+                          "cdem_dem_103P_tif"),
+                     "/cdem_dem_103P.tif"))
+
+d103P <- project(d103P,
+                 "EPSG:32610",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d103P.tif")
+                 )
+
+d103P <- project(d103P,
+                 "EPSG:3005",
+                 threads=n.cores,
+                 res=20,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d103P_3005.tif")
+)
+
+d103P <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                     "/d103P_3005.tif"))
+
+dDEMs <- c(paste0(here("Inputs","Rasters","CDEM"),
+                  "/d095L.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d105I.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d106G.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d117A2.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d117B2.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d117C2.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d117D2.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d103P_3005.tif")
+           )
+
+v <- vrt(dDEMs)
+v <- mask(v,
+          Ecodis,
+          threads=n.cores)
+
+newDEM_rasts <- writeRaster(v,
+                         paste0(here("Inputs","Rasters","CDEM"),
+                                "/newDEM_rasts.tif"),
+                         overwrite=TRUE)
+
+newDEM_rasts <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                            "/newDEM_rasts.tif"))
+
+DEM_tot_new <- c(dir(here("Inputs","Rasters","CDEM"),
+                     pattern="CDEM_total.tif$",
+                     full.names=TRUE),
+                 dir(here("Inputs","Rasters","CDEM"),
+                     pattern="newDEM_rasts.tif$",
+                     full.names=TRUE)
+                 )
+
+v <- vrt(DEM_tot_new)
+
+CDEM_Total <- writeRaster(v,
+                         paste0(here("Inputs","Rasters","CDEM"),
+                                "/CDEM_Total2.tif"),
+                         overwrite=TRUE)
+
+CDEM_Total <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                         "/CDEM_Total2.tif"))
+
+EcoZonet <- project(EcoZone,
+                    CDEM_Total)
+
+#Taiga = 3, montane=2, boreal=1
+CDEM_taiga <- mask(CDEM_Total,
+                   EcoZonet[3,],
+                   threads=n.cores)
+CDEM_boreal <- mask(CDEM_Total,
+                    EcoZonet[1,],
+                    threads=n.cores)
+CDEM_montane <- mask(CDEM_Total,
+                     EcoZonet[2,],
+                     threads=n.cores)
+
+writeRaster(CDEM_taiga,
+            paste0(here("Inputs","Rasters","CDEM"),
+                   "/CDEM_taiga.tif"),
+                   overwrite=TRUE)
+
+writeRaster(CDEM_boreal,
+            paste0(here("Inputs","Rasters","CDEM"),
+                   "/CDEM_boreal.tif"),
+                   overwrite=TRUE)
+
+writeRaster(CDEM_montane,
+            paste0(here("Inputs","Rasters","CDEM"),
+                   "/CDEM_montane.tif"),
+                   overwrite=TRUE)
+
+CDEM_taiga <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                          "/CDEM_taiga.tif"))
+CDEM_boreal <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                          "/CDEM_boreal.tif"))
+CDEM_montane <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                          "/CDEM_montane.tif"))
+
+## Last few -
+
+URL = paste0("ftp.maps.canada.ca/pub/nrcan_rncan/elevation/cdem_mnec/"
+              ,107,
+              "/")
+
+filenames <- getURL(URL,
+                     dirlistonly = TRUE)
+
+files <- unlist(strsplit(filenames,
+                          '\r\n'))
+files_full <- paste0(here("DEM","CDEM"),
+                      "/",
+                      files)
+ 
+for(r in 1:length(files_full)){
+    download.file(paste0(URL,files[r]),
+                  destfile = files_full[r],
+                  method="libcurl")
+}
+
+d107B <- rast(paste0(here("DEM","CDEM"),"/cdem_dem_107B.tif"))
+d107B <- project(d107B, crs(EcoZone),
+                 threads=n.cores,
+                 res=250,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d107B.tif"), overwrite=TRUE
+                 )
+
+d106M <- rast(DEM_dir[172])
+d106M <- project(d106M,
+                 crs(EcoZone),
+                 threads=n.cores,
+                 res=250,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d106M.tif"), overwrite=TRUE
+                 )
+
+
+
+```
+
+
+# rsi Data
+
+Search for NDVI data (MODIS Vegetation Indices 16-Day (250m) https://planetarycomputer.microsoft.com/dataset/modis-13Q1-061) for 2023 over the EcoZone.
+
+```{r rsi, echo=FALSE}
+
+# Aggregate for single
+EcoZonea <- aggregate(EcoZone)
+writeVector(EcoZonea,
+            paste0(here("Inputs","Shapefiles"),
+                   "/EcoZoneagg.shp"),
+            overwrite=TRUE)
+
+EcoZonea <- project(EcoZonea, "epsg:4326")
+EcoZonea_ext <- as.numeric(as.matrix(ext(EcoZonea)))
+
+EcoZone1 <- EcoZone[1]
+writeVector(EcoZone1,
+            paste0(here("Inputs","Shapefiles"),
+                   "/EcoZone1.shp"),
+            overwrite=TRUE)
+
+stac_source <- rstac::stac(
+  "https://planetarycomputer.microsoft.com/api/stac/v1"
+)
+
+rstac::stac_search(
+  q = stac_source,
+  collections = "modis-13Q1-061",
+  bbox = c(EcoZonea_ext[1],
+           EcoZonea_ext[2],
+           EcoZonea_ext[3],
+           EcoZonea_ext[4]),
+  datetime = "2023-05-15/2023-08-31",
+  limit = 999
+) |> 
+  rstac::get_request()
+
+EcoZonea_sf <- sf::st_as_sf(EcoZonea)
+
+Modis_VI <- get_stac_data(
+  EcoZonea_sf,
+  start_date = "2023-05-15",
+  end_date = "2023-08-31",
+  stac_source="https://planetarycomputer.microsoft.com/api/stac/v1",
+  collection = "modis-13Q1-061",
+  asset_names = "250m_16_days_EVI",
+  composite_function=NULL,
+  output_filename = paste0(here::here("Outputs","Rasters"),"/MODIS23.tif")
+)
+
+Modis_VI <- dir(paste0(here::here("Outputs","Rasters")), full.names=TRUE)
+       
+# TEST
+#xm <- project(rast(Modis_VI[1]), "EPSG:32610", threads=n.cores, res=250)
+
+f <- lapply(Modis_VI,
+            terra::rast)
+
+f2 <- lapply(f, function(x) project(x, y = 'epsg:32610', threads=n.cores, res=250))
+
+f3 = Filter(function(r){!all(is.nan(values(r)))}, f2)
+
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+f.mosaic <- do.call(mosaic, f3)
+# Stop the parallel backend
+stopCluster(my.cluster)
+
+writeRaster(f.mosaic,filename=paste0(here::here("Outputs","Rasters"),
+                                     "/MODIS_FULL.tif"), overwrite=TRUE)
+
+MODIS_FULL <- mask(f.mosaic,EcoZone,threads=n.cores)
+
+writeRaster(MODIS_FULL,filename=paste0(here::here("Outputs","Rasters"),
+                                     "/MODIS_FULL.tif"), overwrite=TRUE)
+
+##############
+# Piece is still missing in northern clip.
+# Try again, smaller
+
+EcoZone3 <- EcoZone[3]
+
+EcoZone3 <- sf::st_as_sf(EcoZone3)
+
+Modis_VI <- get_stac_data(
+  EcoZone3,
+  start_date = "2023-05-15",
+  end_date = "2023-08-31",
+  stac_source="https://planetarycomputer.microsoft.com/api/stac/v1",
+  collection = "modis-13Q1-061",
+  asset_names = "250m_16_days_EVI",
+  composite_function=NULL,
+  output_filename = paste0(here::here("Outputs","Rasters"),"/MODIS_N.tif")
+)
+
+Modis_VI_N <- dir(paste0(here::here("Outputs","Rasters")),
+                  full.names=TRUE,
+                  pattern="MODIS_N_\\d{1,}.tif$")
+
+
+f <- lapply(Modis_VI_N,
+            terra::rast)
+
+f2 <- lapply(f, function(x) project(x, y = 'epsg:32610', threads=n.cores, res=250))
+f3 = Filter(function(r){!all(is.nan(values(r)))}, f2)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+f.mosaic <- do.call(mosaic, f3)
+# Stop the parallel backend
+stopCluster(my.cluster)
+
+MODIS_FULL2 <- merge(MODIS_FULL,f.mosaic)
+
+MODIS_FULL <- mask(MODIS_FULL2,EcoZone,threads=n.cores)
+
+writeRaster(MODIS_FULL,filename=paste0(here::here("Outputs","Rasters"),
+                                     "/MODIS_FULL.tif"), overwrite=TRUE)
+
+
+```
+
+
+# Integrate the rasters
+
+
+```{r Explan_Rasts, echo=FALSE}
+
+MODIS_FULL <- rast(paste0(here::here("Outputs","Rasters"),
+                                     "/MODIS_FULL.tif"))
+
+# Put all these rasters into the inputs
+writeRaster(MODIS_FULL,
+            filename=paste0(here::here("Inputs",
+                                       "Rasters",
+                                       "Explanatory"),
+                                     "/MODIS_FULL.tif"),
+            overwrite=TRUE)
+
+
+CDEM_Total <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                         "/CDEM_Total2.tif"))
+
+LandCov <- rast(paste0(here("Inputs","Rasters","Explanatory"),
+                                     "/amph_ecozone_landcover.tif"))
+
+CDEM_Total <- project(CDEM_Total,MODIS_FULL,
+                      threads=n.cores,
+                      res=250)
+
+writeRaster(CDEM_Total,
+            filename=paste0(here::here("Inputs",
+                                       "Rasters",
+                                       "Explanatory"),
+                                     "/CDEM_Total.tif"),
+            overwrite=TRUE)
+
+LandCov <-  project(LandCov,
+                    MODIS_FULL,
+                    threads=n.cores,
+                    res=250)
+writeRaster(LandCov,
+            filename=paste0(here::here("Inputs",
+                                       "Rasters",
+                                       "Explanatory"),
+                                     "/LandCov.tif"),
+            overwrite=TRUE)
+
+
+MODIS_FULL <- rast(paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/MODIS_FULL.tif"))
+
+LandCov <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/LandCov.tif"))
+
+CDEM_Total <- rast(paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_Total.tif"))
+
+# Add the last missing pieces
+d106M <- project(d106M,
+                 crs(CDEM_Total),
+                 threads=n.cores,
+                 res=250,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d106M.tif"), overwrite=TRUE)
+
+d107B <- project(d107B,
+                 crs(CDEM_Total),
+                 threads=n.cores,
+                 res=250,
+                 filename=paste0(here("Inputs","Rasters","CDEM"),
+                                 "/d107B.tif"), overwrite=TRUE)
+
+dDEMs <- c(paste0(here("Inputs","Rasters","CDEM"),
+                  "/d106M.tif"),
+           paste0(here("Inputs","Rasters","CDEM"),
+                  "/d107B.tif")
+           )
+
+v <- vrt(dDEMs)
+v <- mask(v,
+          EcoZone[3],
+          threads=n.cores)
+
+newDEM_rasts <- writeRaster(v,
+                         paste0(here("Inputs","Rasters","CDEM"),
+                                "/newDEM_rasts.tif"),
+                         overwrite=TRUE)
+
+newDEM_rasts <- rast(paste0(here("Inputs","Rasters","CDEM"),
+                            "/newDEM_rasts.tif"))
+
+DEM_tot_new <- c(dir(here("Inputs","Rasters","CDEM"),
+                     pattern="newDEM_rasts.tif",
+                     full.names=TRUE),
+                 paste0(here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_Total.tif")
+                 )
+                 
+
+v <- vrt(DEM_tot_new)
+
+CDEM_Total <- writeRaster(v,
+                         paste0(here("Inputs","Rasters","CDEM"),
+                                "/CDEM_Total.tif"),
+                         overwrite=TRUE)
+
+
+
+```
+
+
+#Climate NA
+
+```{r ClimateNA, echo=FALSE}
+
+CDEM_Total <- rast(paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_Total.tif"))
+
+climbc <- rast(paste0(here("InputFiles"),"/BC80k.asc"))
+climbcdf <- as.data.frame(climbc) 
+
+EcoZone <- project(EcoZone,
+                   crs(climbc))
+
+CDEM_Total <- project(CDEM_Total,
+                       crs(climbc),
+                      threads=n.cores)
+
+Boreal <- EcoZone[1] # Boreal
+Montane <- EcoZone[2] # Montane
+Taiga <- EcoZone[3] # Taiga
+
+#Boreal
+
+CDEM_Total1 <- mask(CDEM_Total, Boreal)
+CDEM_Total1 <- crop(CDEM_Total1, Boreal, mask=TRUE)
+values(CDEM_Total1) <- as.integer(values(CDEM_Total1))
+CDEM_Total1 <- subst(CDEM_Total1, NA, -9999)
+
+writeRaster(CDEM_Total1,
+            paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_boreal.asc"),
+            NAflag=-9999, overwrite=TRUE)
+
+temp <- readLines(paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_boreal.asc"))
+
+write.table(temp,paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_boreal.asc"),
+            row.names=F,
+            col.names=F,
+            quote=F)
+
+# Montane
+
+CDEM_Total2 <- mask(CDEM_Total, Montane)
+CDEM_Total2 <- crop(CDEM_Total2, Montane, mask=TRUE)
+values(CDEM_Total2) <- as.integer(values(CDEM_Total2))
+CDEM_Total2 <- subst(CDEM_Total2, NA, -9999)
+
+writeRaster(CDEM_Total2,
+            paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_montane.asc"),
+            NAflag=-9999, overwrite=TRUE)
+
+
+temp <- readLines(paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_montane.asc"))
+
+write.table(temp,paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_montane.asc"),
+            row.names=F,
+            col.names=F,
+            quote=F)
+
+#Taiga
+CDEM_Total3 <- mask(CDEM_Total, Taiga)
+CDEM_Total3 <- crop(CDEM_Total3, Taiga, mask=TRUE)
+values(Taiga) <- as.integer(values(Taiga))
+CDEM_Total3 <- subst(CDEM_Total3, NA, -9999)
+
+writeRaster(CDEM_Total3,
+            paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_taiga.asc"),
+            NAflag=-9999, overwrite=TRUE)
+
+temp <- readLines(paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_taiga.asc"))
+
+write.table(temp,paste0(here("Outputs","Rasters","Explanatory"),
+                         "/CDEM_taiga.asc"),
+            row.names=F,
+            col.names=F,
+            quote=F)
+
+
+CDEM_boreal <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_boreal.asc"))
+CDEM_montane <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_montane.asc"))
+CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_taiga.asc"))
+
+```
+
+# ClimatNA mapping
+
+Review of variables in Muths et al. (2017) to consider variables for models.
+
+Derived annual variables:
+Directly calculated annual variables:
+MAT	 	mean annual temperature (°C),
+MWMT 	mean warmest month temperature (°C),
+MCMT  mean coldest month temperature (°C),
+
+
+Derived seasonal variables:
+RH_wt		winter relative humidity (%)
+
+
+```{r, ClimNA_Maps, echo=FALSE}
+
+Boreal <- EcoZone[1] # Boreal
+Montane <- EcoZone[2] # Montane
+Taiga <- EcoZone[3] # Taiga
+
+Boreal_MAT <- rast(paste0(here("Outputs",
+                              "Rasters",
+                              "Explanatory",
+                              "CDEM_boreal",
+                              "Normal_1991_2020Y"),
+                          "/MAT.asc"))
+
+Montane_MAT <- rast(paste0(here("Outputs",
+                              "Rasters",
+                              "Explanatory",
+                              "CDEM_montane",
+                              "Normal_1991_2020Y"),
+                          "/MAT.asc"))
+
+Taiga_MAT <- rast(paste0(here("Outputs",
+                              "Rasters",
+                              "Explanatory",
+                              "CDEM_taiga",
+                              "Normal_1991_2020Y"),
+                          "/MAT.asc"))
+
+
+
+```
+
+# Random Forest models
+
+```{r RF_Stat, echo=TRUE, eval=FALSE}
+
+# Import Explanatory vars
+
+## DEMS:
+
+CDEM_boreal <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_boreal.asc"))
+CDEM_montane <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_montane.asc"))
+CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_taiga.asc"))
+
+## NDVI:
+
+MODIS_FULL <- rast(paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/MODIS_FULL.tif"))
+
+## Land Cover
+
+LandCov <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/LandCov.tif"))
+
+
+
+Sprasts <- c(TRI_dem,Slope_dem)
+
+Sprasts <- c(TRI_demag,Slope_demag,Rad_Ruf_demag,Rad_Veg_demag,GLC_LS_demag)
+
+
+
+# extract predictor values for points
+# Simple
+#TRI_vals <- extract(TRI_dem, met_datav)
+
+TRI_vals <- extract(TRI_dem, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
+colnames(TRI_vals) <- c("ID","TRI_vals")
+
+Slope_vals <- extract(Slope_dem, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
+colnames(Slope_vals) <- c("ID","Slope_vals")
+
+Rad_Ruf_vals <- extract(Rad_Ruf, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
+colnames(Rad_Ruf_vals) <- c("ID","Ruf_vals")
+
+Rad_Veg_vals <- extract(Rad_Veg, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
+colnames(Rad_Veg_vals) <- c("ID","Veg_vals")
+
+GLC_vals <- extract(GLC_LS, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
+colnames(GLC_vals) <- c("ID","GLC_vals")
+
+# combine with response (excluding the ID column)
+# combine the metal conc with the TRI val
+#v <- data.frame(cbind(pa=xy[,1], e))
+
+met_data <- data.frame(cbind(metal=values(met_datav),
+                             TRI_vals=TRI_vals[,2]),
+                             Slope_vals=Slope_vals[,2],
+                             Veg_vals=Rad_Veg_vals[,2],
+                             Ruf_vals=Rad_Ruf_vals[,2],
+                             GLC_vals=GLC_vals[,2]
+                       )
+
+
+## Arsenic ----
+rfm <- randomForest(formula=As_ppm ~ TRI_vals + Slope_vals + Veg_vals + Ruf_vals + GLC_vals, data=met_data)
+
+
+varImpPlot(rfm,
+           main = "Bagging: Variable importance")
+
+
+## approach 1, use the "cpkgs" argument 
+modlist <- list()
+modlist[[1]] <- assign(paste0(metal,"_rfp1"),predict(Sprasts,
+               rfm,
+               cores=n.cores,
+               cpkgs="randomForest")
+)
+
+nmx <- paste0(metal,"_rfp1")
+
+writeRaster(modlist[[1]],paste0(here("Outputs","Rasters"),"/RF_As_rp1a.tif"), overwrite=TRUE)
+
+tm_shape(modlist[[1]]) +
+  tm_raster(style= "kmeans", legend.show=FALSE) +
+  tm_shape(Eco_metplot_vs[which(Eco_metplot_vs$metal == "Copper"),]) + 
+  tm_symbols(shape = 21, size = "value",
+             title.size = "Concentration (ppm)", col = "goldenrod4", border.col="black") +
+tm_scale_bar(position = c("left", "bottom"))+
+tm_layout(main.title = "Copper",
+            bg.color = "lightgrey", inner.margins = c(-0.5, -0.3, -0.2, -0.4)) +  tm_compass(position = c("right", "top"), size = 2)
+
+
