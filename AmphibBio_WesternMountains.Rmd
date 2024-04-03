@@ -1143,40 +1143,36 @@ CDEM_boreal <- rast(paste0(here("Outputs","Rasters","Explanatory"),
 CDEM_boreal <- project(CDEM_boreal,
                        "EPSG:32610",
                       threads=n.cores,
-                      res=250)
-writeRaster(CDEM_boreal,
-            paste0(here::here("Inputs",
+                      filename=paste0(here::here("Inputs",
                                      "Rasters",
                                      "Explanatory"),
                           "/CDEM_boreal.tif"),
-            overwrite=TRUE)
+                      overwrite=TRUE,
+                      res=250)
 
 CDEM_montane <- rast(paste0(here("Outputs","Rasters","Explanatory"),
                    "/CDEM_montane.asc"))
 CDEM_montane <- project(CDEM_montane,
                        "EPSG:32610",
                       threads=n.cores,
-                      res=250)
-writeRaster(CDEM_montane,
-            paste0(here::here("Inputs",
+                      filename=paste0(here::here("Inputs",
                                      "Rasters",
                                      "Explanatory"),
                           "/CDEM_montane.tif"),
-            overwrite=TRUE)
+                      overwrite=TRUE,
+                      res=250)
 
 CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
                    "/CDEM_taiga.asc"))
 CDEM_taiga <- project(CDEM_taiga,
                        "EPSG:32610",
                       threads=n.cores,
-                      res=250)
-writeRaster(CDEM_taiga,
-            paste0(here::here("Inputs",
+                      filename=paste0(here::here("Inputs",
                                      "Rasters",
                                      "Explanatory"),
                           "/CDEM_taiga.tif"),
-            overwrite=TRUE)
-
+                      overwrite=TRUE,
+                      res=250)
 
 # Roughness
 Rough_dem <- terrain(CDEM_Total, "roughness")
@@ -1469,6 +1465,35 @@ Taiga_MCMT <- rast(paste0(here::here("Inputs",
                                   "Rasters",
                                   "Explanatory"),
                                      "/Taiga_MCMT.tif"))
+maskrasts <- function (x){
+  apply(mask(x,EcoZone))
+  
+}
+
+# Some have slightly different origins.
+# resample - see:
+# https://gis.stackexchange.com/questions/440245
+
+CDEM_boreal <- resample(CDEM_boreal,Rough_boreal)
+CDEM_boreal <- mask(CDEM_boreal,Rough_boreal)
+
+Boreal_MAT  <- resample(Boreal_MAT,Rough_boreal)
+Boreal_MAT <- mask(Boreal_MAT,Rough_boreal)
+
+Boreal_MCMT <- resample(Boreal_MCMT,Rough_boreal)
+Boreal_MCMT <- mask(Boreal_MCMT,Rough_boreal)
+
+
+SA_boreal <- resample(SA_boreal,Rough_boreal)
+SA_boreal <- mask(SA_boreal,Rough_boreal)
+
+NDVI_boreal <- resample(NDVI_boreal,Rough_boreal)
+NDVI_boreal <- mask(NDVI_boreal,Rough_boreal)
+
+LandCov_boreal <- resample(LandCov_boreal,Rough_boreal)
+LandCov_boreal <- mask(LandCov_boreal,Rough_boreal)
+
+
 Sprasts_boreal <- c(CDEM_boreal,
                     Rough_boreal,
                     SA_boreal,
@@ -1478,6 +1503,24 @@ Sprasts_boreal <- c(CDEM_boreal,
                     Boreal_MCMT
                     )
 
+CDEM_montane <- resample(CDEM_montane,Rough_montane)
+CDEM_montane <- mask(CDEM_montane,Rough_montane)
+
+Montane_MAT  <- resample(Montane_MAT,Rough_montane)
+Montane_MAT <- mask(Montane_MAT,Rough_montane)
+
+Montane_MCMT <- resample(Montane_MCMT,Rough_montane)
+Montane_MCMT <- mask(Montane_MCMT,Rough_montane)
+
+SA_montane <- resample(SA_montane,Rough_montane)
+SA_montane <- mask(SA_montane,Rough_montane)
+
+NDVI_montane <- resample(NDVI_montane,Rough_montane)
+NDVI_montane <- mask(NDVI_montane,Rough_montane)
+
+LandCov_montane <- resample(LandCov_montane,Rough_montane)
+LandCov_montane <- mask(LandCov_montane,Rough_montane)
+
 Sprasts_montane <- c(CDEM_montane,
                     Rough_montane,
                     SA_montane,
@@ -1486,6 +1529,24 @@ Sprasts_montane <- c(CDEM_montane,
                     Montane_MAT,
                     Montane_MCMT
                     )
+
+CDEM_taiga <- resample(CDEM_taiga,Rough_taiga)
+CDEM_taiga <- mask(CDEM_taiga,Rough_taiga)
+
+Taiga_MAT  <- resample(Taiga_MAT,Rough_taiga)
+Taiga_MAT <- mask(Taiga_MAT,Rough_taiga)
+
+Taiga_MCMT <- resample(Taiga_MCMT,Rough_taiga)
+Taiga_MCMT <- mask(Taiga_MCMT,Rough_taiga)
+
+SA_taiga <- resample(SA_taiga,Rough_taiga)
+SA_taiga <- mask(SA_taiga,Rough_taiga)
+
+NDVI_taiga <- resample(NDVI_taiga,Rough_taiga)
+NDVI_taiga <- mask(NDVI_taiga,Rough_taiga)
+
+LandCov_taiga <- resample(LandCov_taiga,Rough_taiga)
+LandCov_taiga <- mask(LandCov_taiga,Rough_taiga)
 
 Sprasts_taiga <- c(CDEM_taiga,
                     Rough_taiga,
