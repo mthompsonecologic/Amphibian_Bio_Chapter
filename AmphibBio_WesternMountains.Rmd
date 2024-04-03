@@ -1051,9 +1051,52 @@ CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
 
 ```
 
-# ClimatNA mapping
+# Predictor Variables: Amphibian Data
+
+```{r Amphib_locs, echo=TRUE, eval=FALSE}
+
+AMMA <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMMA_Total.shp"))
+AMMA <- project(AMMA,"EPSG:32610")
+AMMA <- crop(AMMA, EcoZone)
+  
+AMTI <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMTI_Total.shp"))
+AMTI <- project(AMTI,"EPSG:32610")
+AMTI <- crop(AMTI, EcoZone)
+
+ANBO <- vect(paste0(here("Inputs","AmphibianLocations"),"/ANBO_Total.shp"))
+ANBO <- project(ANBO,"EPSG:32610")
+ANBO <- crop(ANBO, EcoZone)
+
+RALU <- vect(paste0(here("Inputs","AmphibianLocations"),"/RALU_Total.shp"))
+RALU <- project(RALU,"EPSG:32610")
+RALU <- crop(RALU, EcoZone)
+
+RASY <- vect(paste0(here("Inputs","AmphibianLocations"),"/RASY_Total.shp"))
+RASY <- project(RASY,"EPSG:32610")
+RASY <- crop(RASY, EcoZone)
+
+# Buffer the points by 1 km
+AMMA_1km <- buffer(AMMA,
+                   1000)
+AMTI_1km <- buffer(AMTI,
+                   1000)
+ANBO_1km <- buffer(ANBO,
+                   1000)
+RALU_1km <- buffer(RALU,
+                   1000)
+RASY_1km <- buffer(RASY,
+                   1000)
+
+
+```
+
+
+# Explanatory Variables
 
 Review of variables in Muths et al. (2017) to consider variables for models.
+
+Lucid and Cushman (2020) Northwest Naturalist, 104:281-286
+Mean annual minimum air temperature
 
 Derived annual variables:
 Directly calculated annual variables:
@@ -1061,23 +1104,138 @@ MAT	 	mean annual temperature (°C),
 MWMT 	mean warmest month temperature (°C),
 MCMT  mean coldest month temperature (°C),
 
-
 Derived seasonal variables:
 RH_wt		winter relative humidity (%)
 
+3) Monthly variables
+Primary monthly variables:
+TMN01 – TMN12 	January - December minimum mean temperatures (°C)
 
-```{r, ClimNA_Maps, echo=FALSE}
 
+```{r, Explanatory_Vars, echo=FALSE}
+
+# Shapefiles
+EcoZone <- project(EcoZone,"EPSG:32610")
 Boreal <- EcoZone[1] # Boreal
 Montane <- EcoZone[2] # Montane
 Taiga <- EcoZone[3] # Taiga
 
+CDEM_Total <- rast(paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_Total.tif"))
+CDEM_Total <- project(CDEM_Total,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(CDEM_Total) <- "Elev"
+
+writeRaster(CDEM_Total,
+            paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_Total.tif"),
+            overwrite=TRUE)
+
+
+CDEM_boreal <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_boreal.asc"))
+CDEM_boreal <- project(CDEM_boreal,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+writeRaster(CDEM_boreal,
+            paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_boreal.tif"),
+            overwrite=TRUE)
+
+CDEM_montane <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_montane.asc"))
+CDEM_montane <- project(CDEM_montane,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+writeRaster(CDEM_montane,
+            paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_montane.tif"),
+            overwrite=TRUE)
+
+CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
+                   "/CDEM_taiga.asc"))
+CDEM_taiga <- project(CDEM_taiga,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+writeRaster(CDEM_taiga,
+            paste0(here::here("Inputs",
+                                     "Rasters",
+                                     "Explanatory"),
+                          "/CDEM_taiga.tif"),
+            overwrite=TRUE)
+
+
+# Roughness
+Rough_dem <- terrain(CDEM_Total, "roughness")
+
+names(Rough_dem) <- "Rough"
+
+writeRaster(Rough_dem,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Rough_dem.tif"),
+            overwrite=TRUE)
+
+
+# Slope
+Slope_dem <- terrain(CDEM_Total, "slope")
+names(Slope_dem) <- "Slope_vals"
+writeRaster(Slope_dem, paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Slope_dem.tif"), overwrite=TRUE)
+
+
+# aspect
+Aspect_dem <- terrain(CDEM_Total, "aspect")
+names(Aspect_dem) <- "aspect"
+writeRaster(Aspect_dem, paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Aspect_dem.tif"), overwrite=TRUE)
+
+
+# Slope-Aspect
+SA_dem <- Slope_dem*Aspect_dem
+names(SA_dem) <- "SA"
+writeRaster(Aspect_dem, paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/SA_dem.tif"), overwrite=TRUE)
+
+
+
+# Climate Variables
+# Mean annual temperature
 Boreal_MAT <- rast(paste0(here("Outputs",
                               "Rasters",
                               "Explanatory",
                               "CDEM_boreal",
                               "Normal_1991_2020Y"),
                           "/MAT.asc"))
+
+Boreal_MAT <- project(Boreal_MAT,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(Boreal_MAT) <- "MAT"
+
+writeRaster(Boreal_MAT,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Boreal_MAT.tif"),
+            overwrite=TRUE)
+
+
 
 Montane_MAT <- rast(paste0(here("Outputs",
                               "Rasters",
@@ -1086,6 +1244,19 @@ Montane_MAT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MAT.asc"))
 
+Montane_MAT <- project(Montane_MAT,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(Montane_MAT) <- "MAT"
+writeRaster(Montane_MAT,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Montane_MAT.tif"),
+            overwrite=TRUE)
+
+
 Taiga_MAT <- rast(paste0(here("Outputs",
                               "Rasters",
                               "Explanatory",
@@ -1093,31 +1264,101 @@ Taiga_MAT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MAT.asc"))
 
+Taiga_MAT <- project(Taiga_MAT,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(Taiga_MAT) <- "MAT"
+writeRaster(Taiga_MAT,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Taiga_MAT.tif"),
+            overwrite=TRUE)
+
+# mean coldest month temperature (°C),
+# MCMT  
+
+Boreal_MCMT <- rast(paste0(here("Outputs",
+                              "Rasters",
+                              "Explanatory",
+                              "CDEM_boreal",
+                              "Normal_1991_2020Y"),
+                          "/MCMT.asc"))
+
+Boreal_MCMT <- project(Boreal_MCMT,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(Boreal_MCMT) <- "MCMT"
+writeRaster(Boreal_MCMT,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Boreal_MCMT.tif"),
+            overwrite=TRUE)
 
 
-```
 
-# Random Forest models
+Montane_MCMT <- rast(paste0(here("Outputs",
+                              "Rasters",
+                              "Explanatory",
+                              "CDEM_montane",
+                              "Normal_1991_2020Y"),
+                          "/MCMT.asc"))
 
-```{r RF_Stat, echo=TRUE, eval=FALSE}
+Montane_MCMT <- project(Montane_MCMT,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(Montane_MCMT) <- "MCMT"
+writeRaster(Montane_MCMT,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Montane_MCMT.tif"),
+            overwrite=TRUE)
 
-# Import Explanatory vars
 
-## DEMS:
+Taiga_MCMT <- rast(paste0(here("Outputs",
+                              "Rasters",
+                              "Explanatory",
+                              "CDEM_taiga",
+                              "Normal_1991_2020Y"),
+                          "/MCMT.asc"))
 
-CDEM_boreal <- rast(paste0(here("Outputs","Rasters","Explanatory"),
-                   "/CDEM_boreal.asc"))
-CDEM_montane <- rast(paste0(here("Outputs","Rasters","Explanatory"),
-                   "/CDEM_montane.asc"))
-CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
-                   "/CDEM_taiga.asc"))
+Taiga_MCMT <- project(Taiga_MCMT,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(Taiga_MCMT) <- "MCMT"
+writeRaster(Taiga_MCMT,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/Taiga_MCMT.tif"),
+            overwrite=TRUE)
+
 
 ## NDVI:
 
-MODIS_FULL <- rast(paste0(here::here("Inputs",
+NDVI <- rast(paste0(here::here("Inputs",
                                      "Rasters",
                                      "Explanatory"),
                           "/MODIS_FULL.tif"))
+
+NDVI <- project(NDVI,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(NDVI) <- "NDVI"
+
+writeRaster(NDVI,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/NDVI.tif"),
+            overwrite=TRUE)
 
 ## Land Cover
 
@@ -1126,12 +1367,145 @@ LandCov <- rast(paste0(here::here("Inputs",
                                   "Explanatory"),
                                      "/LandCov.tif"))
 
+LandCov <- project(LandCov,
+                       "EPSG:32610",
+                      threads=n.cores,
+                      res=250)
+names(LandCov) <- "LandCov"
+
+writeRaster(LandCov,
+            paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/LandCov.tif"),
+            overwrite=TRUE)
 
 
-Sprasts <- c(TRI_dem,Slope_dem)
+# CDEM
 
-Sprasts <- c(TRI_demag,Slope_demag,Rad_Ruf_demag,Rad_Veg_demag,GLC_LS_demag)
+CDEM_Total <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_Total.tif"))
+CDEM_boreal <-rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_boreal.tif"))
+CDEM_montane <-rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_montane.tif"))
+CDEM_taiga <-rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_taiga.tif"))
 
+#Roughness
+Rough_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Rough_dem.tif"))
+Rough_boreal <- crop(Rough_dem,Boreal)
+Rough_boreal <- mask(Rough_boreal,Boreal)
+Rough_montane <- crop(Rough_dem,Montane)
+Rough_montane <- mask(Rough_boreal,Montane)
+Rough_taiga <- crop(Rough_dem,Taiga)
+Rough_taiga <- mask(Rough_boreal,Taiga)
+
+#Slope_Aspect
+SA_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/SA_dem.tif"))
+SA_boreal <- crop(SA_dem,Boreal)
+SA_boreal <- mask(SA_boreal,Boreal)
+
+SA_montane <- crop(SA_dem,Montane)
+SA_montane <- mask(SA_montane,Montane)
+
+SA_taiga <- crop(SA_dem,Taiga)
+SA_taiga <- mask(SA_taiga,Taiga)
+
+#NDVI
+NDVI <-rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/NDVI.tif")) 
+NDVI_boreal <- crop(NDVI,Boreal)
+NDVI_boreal <- mask(NDVI_boreal,Boreal)
+
+NDVI_montane <- crop(NDVI,Montane)
+NDVI_montane <- mask(NDVI_montane,Montane)
+
+NDVI_taiga <- crop(NDVI,Taiga)
+NDVI_taiga <- mask(NDVI_taiga,Taiga)
+
+#LandCov
+LandCov <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/LandCov.tif"))
+LandCov_boreal <- crop(LandCov,Boreal)
+LandCov_boreal <- mask(LandCov_boreal,Boreal)
+
+LandCov_montane <- crop(LandCov,Montane)
+LandCov_montane <- mask(LandCov_montane,Montane)
+
+LandCov_taiga <- crop(LandCov,Taiga)
+LandCov_taiga <- mask(LandCov_taiga,Taiga)
+
+# MAT
+Boreal_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MAT.tif"))
+Montane_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MAT.tif"))
+Taiga_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MAT.tif"))
+
+# MCMT
+Boreal_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MCMT.tif"))
+
+Montane_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MCMT.tif"))
+
+Taiga_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MCMT.tif"))
+Sprasts_boreal <- c(CDEM_boreal,
+                    Rough_boreal,
+                    SA_boreal,
+                    NDVI_boreal,
+                    LandCov_boreal,
+                    Boreal_MAT,
+                    Boreal_MCMT
+                    )
+
+Sprasts_montane <- c(CDEM_montane,
+                    Rough_montane,
+                    SA_montane,
+                    NDVI_montane,
+                    LandCov_montane,
+                    Montane_MAT,
+                    Montane_MCMT
+                    )
+
+Sprasts_taiga <- c(CDEM_taiga,
+                    Rough_taiga,
+                    SA_taiga,
+                    NDVI_taiga,
+                    LandCov_taiga,
+                    Taiga_MAT,
+                    Taiga_MCMT
+                    )
+
+
+
+
+```
+
+# Random Forest models
+
+AMMA <- 
+
+```{r RF_Stat, echo=TRUE, eval=FALSE}
 
 
 # extract predictor values for points
