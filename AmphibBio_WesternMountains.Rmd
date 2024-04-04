@@ -37,7 +37,8 @@ list.of.packages <- c(
   "RColorBrewer",
   "dismo",
   "randomForest",
-  "SSDM"
+  "SSDM",
+  "ranger"
 )
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -1847,28 +1848,14 @@ Montane_AMMA_F2 <- merge(Montane_AMMA_F,AMMA_abs,by=c("ID","PA"))
 AMMA_data <- rbind(Montane_AMMA_T2,Montane_AMMA_F2)
 
 names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
-AMMA_data$PA <- as.factor(AMMA_data$PA)
-
+AMMA_data$PA <- as.numeric(AMMA_data$PA)
 
 ## AMMA ----
 AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMMA_data)
 
 
-varImpPlot(AMMA_rfm,
-           main = "Bagging: Variable importance")
+model1 <- predict(Sprasts_montane, AMMA_rfm)
 
-
-## approach 1, use the "cpkgs" argument 
-modlist <- list()
-modlist[[1]] <- assign(paste0("AMMA","_rfp1"),predict(Sprasts_montane,
-               AMMA_rfm,
-               cores=n.cores,
-               cpkgs="randomForest")
-)
-
-
-AMMA_SDM <- modelling('RF', AMMA_data, 
-                 Sprasts_montane, Xcol = 'lon', Ycol = 'lat')
 
 
 nmx <- paste0("AMMA","_rfp1")
