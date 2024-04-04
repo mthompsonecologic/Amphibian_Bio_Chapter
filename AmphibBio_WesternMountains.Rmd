@@ -38,7 +38,10 @@ list.of.packages <- c(
   "dismo",
   "randomForest",
   "SSDM",
-  "ranger"
+  "ranger",
+  "tmap",
+  "BiodiversityR",
+  "tidyverse"
 )
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -162,9 +165,14 @@ df <- data.frame(
   elevation = as.numeric(elevation)
 )
 
-############################################
-# Obtaining coordinates from image records
+```
 
+
+# Coordinates from digital image records
+
+I had a directory of photos with coordinates stored in the metadata. Coordinates were cross referenced with maps, field notes, and GPS records. This was a simple way to view the new records and retrieve the coordinate data.
+
+```{r Photos echo=FALSE, eval=FALSE}
 install_exiftool()
 file_names <- list.files(here("Inputs","AmphibianLocations"),
                          pattern = "*.jpg", full.names=TRUE)
@@ -281,7 +289,9 @@ writeVector(Amphibians,
             overwrite=TRUE)
 ```
 
-# Obtain the Canada DEM
+# Canada DEM
+
+The Canada DEM is retrieved using the ftp repository. This required a visual check on the grid sheets using GoogleEarth and the spatRaster plots to fill in the gaps. The CRS projections in the northern extents also required lat/long rather than UTM to merge all the pieces together, so the data is projected and merged accordingly. This was done in pieces like a jigsaw puzzle and the code reflects this history. The basic formulation is to list the sheets to download, unpack the zip files, project the data, and bring it together using virtual rasters to save on memory and processing time.
 
 ```{r DEM, echo=FALSE}
 
@@ -710,6 +720,8 @@ d106M <- project(d106M,
 
 # rsi Data
 
+This code chunk uses the rsi package (https://cran.r-project.org/web/packages/rsi/index.html) to: "Efficiently Retrieve and Process Satellite Imagery".
+
 Search for NDVI data (MODIS Vegetation Indices 16-Day (250m) https://planetarycomputer.microsoft.com/dataset/modis-13Q1-061) for 2023 over the EcoZone.
 
 ```{r rsi, echo=FALSE}
@@ -962,6 +974,9 @@ CDEM_Total <- writeRaster(v,
 
 #Climate NA
 
+See: https://climatena.ca/
+
+
 ```{r ClimateNA, echo=FALSE}
 
 CDEM_Total <- rast(paste0(here::here("Inputs",
@@ -1061,6 +1076,21 @@ CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
 ```{r Amphib_locs, echo=TRUE, eval=FALSE}
 
 AMMA <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMMA_Total.shp"))
+
+AMMAg <- data.frame(crds(AMMA))
+AMMAgdf <- SpatialPointsDataFrame(coords = AMMAg[,c(1,2)], data = AMMAg,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+
+AMMAgt <- ensemble.spatialThin(AMMAgdf,
+                               thin.km = 1,
+                               runs = 100,
+                               silent = FALSE,
+                               verbose = FALSE,
+                               return.notRetained = FALSE)
+
+df_near <- st_join(df, df1, join = st_nearest_feature)
+
 AMMA <- project(AMMA,"EPSG:32610")
 AMMA <- crop(AMMA, EcoZone)
   
@@ -1856,7 +1886,9 @@ AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT
 
 model1 <- predict(Sprasts_montane, AMMA_rfm)
 
-
+tm_shape(model1)+
+tm_raster(style= "cont")+
+tm_layout(legend.outside = TRUE)
 
 nmx <- paste0("AMMA","_rfp1")
 
