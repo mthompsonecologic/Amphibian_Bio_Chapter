@@ -33,7 +33,11 @@ list.of.packages <- c(
   "rsi",
   "rstac",
   "doParallel",
-  "usethis"
+  "usethis",
+  "RColorBrewer",
+  "dismo",
+  "randomForest",
+  "SSDM"
 )
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -1394,9 +1398,9 @@ Rough_dem <- rast(paste0(here("Inputs","Rasters",
 Rough_boreal <- crop(Rough_dem,Boreal)
 Rough_boreal <- mask(Rough_boreal,Boreal)
 Rough_montane <- crop(Rough_dem,Montane)
-Rough_montane <- mask(Rough_boreal,Montane)
+Rough_montane <- mask(Rough_montane,Montane)
 Rough_taiga <- crop(Rough_dem,Taiga)
-Rough_taiga <- mask(Rough_boreal,Taiga)
+Rough_taiga <- mask(Rough_taiga,Taiga)
 
 #Slope_Aspect
 SA_dem <- rast(paste0(here("Inputs","Rasters",
@@ -1465,34 +1469,32 @@ Taiga_MCMT <- rast(paste0(here::here("Inputs",
                                   "Rasters",
                                   "Explanatory"),
                                      "/Taiga_MCMT.tif"))
-maskrasts <- function (x){
-  apply(mask(x,EcoZone))
-  
-}
 
 # Some have slightly different origins.
 # resample - see:
 # https://gis.stackexchange.com/questions/440245
 
-CDEM_boreal <- resample(CDEM_boreal,Rough_boreal)
-CDEM_boreal <- mask(CDEM_boreal,Rough_boreal)
+blankras <- NDVI_boreal
+blankras[blankras > min(values(blankras),na.rm=TRUE)] <- 1
+blankras[blankras < max(values(blankras),na.rm=TRUE)] <- 1
 
-Boreal_MAT  <- resample(Boreal_MAT,Rough_boreal)
-Boreal_MAT <- mask(Boreal_MAT,Rough_boreal)
+CDEM_boreal <- resample(CDEM_boreal,blankras)
+CDEM_boreal <- mask(CDEM_boreal,blankras)
 
-Boreal_MCMT <- resample(Boreal_MCMT,Rough_boreal)
-Boreal_MCMT <- mask(Boreal_MCMT,Rough_boreal)
+Boreal_MAT  <- resample(Boreal_MAT,blankras)
+Boreal_MAT <- mask(Boreal_MAT,blankras)
 
+Boreal_MCMT <- resample(Boreal_MCMT,blankras)
+Boreal_MCMT <- mask(Boreal_MCMT,blankras)
 
-SA_boreal <- resample(SA_boreal,Rough_boreal)
+SA_boreal <- resample(SA_boreal,blankras)
 SA_boreal <- mask(SA_boreal,Rough_boreal)
 
-NDVI_boreal <- resample(NDVI_boreal,Rough_boreal)
-NDVI_boreal <- mask(NDVI_boreal,Rough_boreal)
+NDVI_boreal <- resample(NDVI_boreal,blankras)
+NDVI_boreal <- mask(NDVI_boreal,blankras)
 
-LandCov_boreal <- resample(LandCov_boreal,Rough_boreal)
-LandCov_boreal <- mask(LandCov_boreal,Rough_boreal)
-
+LandCov_boreal <- resample(LandCov_boreal,blankras)
+LandCov_boreal <- mask(LandCov_boreal,blankras)
 
 Sprasts_boreal <- c(CDEM_boreal,
                     Rough_boreal,
@@ -1503,23 +1505,29 @@ Sprasts_boreal <- c(CDEM_boreal,
                     Boreal_MCMT
                     )
 
-CDEM_montane <- resample(CDEM_montane,Rough_montane)
-CDEM_montane <- mask(CDEM_montane,Rough_montane)
+# Montane
 
-Montane_MAT  <- resample(Montane_MAT,Rough_montane)
-Montane_MAT <- mask(Montane_MAT,Rough_montane)
+blankras <- NDVI_montane
+blankras[blankras > min(values(blankras),na.rm=TRUE)] <- 1
+blankras[blankras < max(values(blankras),na.rm=TRUE)] <- 1
 
-Montane_MCMT <- resample(Montane_MCMT,Rough_montane)
-Montane_MCMT <- mask(Montane_MCMT,Rough_montane)
+CDEM_montane <- resample(CDEM_montane,blankras)
+CDEM_montane <- mask(CDEM_montane,blankras)
 
-SA_montane <- resample(SA_montane,Rough_montane)
-SA_montane <- mask(SA_montane,Rough_montane)
+Montane_MAT  <- resample(Montane_MAT,blankras)
+Montane_MAT <- mask(Montane_MAT,blankras)
 
-NDVI_montane <- resample(NDVI_montane,Rough_montane)
-NDVI_montane <- mask(NDVI_montane,Rough_montane)
+Montane_MCMT <- resample(Montane_MCMT,blankras)
+Montane_MCMT <- mask(Montane_MCMT,blankras)
 
-LandCov_montane <- resample(LandCov_montane,Rough_montane)
-LandCov_montane <- mask(LandCov_montane,Rough_montane)
+SA_montane <- resample(SA_montane,blankras)
+SA_montane <- mask(SA_montane,blankras)
+
+NDVI_montane <- resample(NDVI_montane,blankras)
+NDVI_montane <- mask(NDVI_montane,blankras)
+
+LandCov_montane <- resample(LandCov_montane,blankras)
+LandCov_montane <- mask(LandCov_montane,blankras)
 
 Sprasts_montane <- c(CDEM_montane,
                     Rough_montane,
@@ -1530,23 +1538,29 @@ Sprasts_montane <- c(CDEM_montane,
                     Montane_MCMT
                     )
 
-CDEM_taiga <- resample(CDEM_taiga,Rough_taiga)
-CDEM_taiga <- mask(CDEM_taiga,Rough_taiga)
+# Taiga
 
-Taiga_MAT  <- resample(Taiga_MAT,Rough_taiga)
-Taiga_MAT <- mask(Taiga_MAT,Rough_taiga)
+blankras <- NDVI_taiga
+blankras[blankras > min(values(blankras),na.rm=TRUE)] <- 1
+blankras[blankras < max(values(blankras),na.rm=TRUE)] <- 1
 
-Taiga_MCMT <- resample(Taiga_MCMT,Rough_taiga)
-Taiga_MCMT <- mask(Taiga_MCMT,Rough_taiga)
+CDEM_taiga <- resample(CDEM_taiga,blankras)
+CDEM_taiga <- mask(CDEM_taiga,blankras)
 
-SA_taiga <- resample(SA_taiga,Rough_taiga)
-SA_taiga <- mask(SA_taiga,Rough_taiga)
+Taiga_MAT  <- resample(Taiga_MAT,blankras)
+Taiga_MAT <- mask(Taiga_MAT,blankras)
 
-NDVI_taiga <- resample(NDVI_taiga,Rough_taiga)
-NDVI_taiga <- mask(NDVI_taiga,Rough_taiga)
+Taiga_MCMT <- resample(Taiga_MCMT,blankras)
+Taiga_MCMT <- mask(Taiga_MCMT,blankras)
 
-LandCov_taiga <- resample(LandCov_taiga,Rough_taiga)
-LandCov_taiga <- mask(LandCov_taiga,Rough_taiga)
+SA_taiga <- resample(SA_taiga,blankras)
+SA_taiga <- mask(SA_taiga,blankras)
+
+NDVI_taiga <- resample(NDVI_taiga,blankras)
+NDVI_taiga <- mask(NDVI_taiga,blankras)
+
+LandCov_taiga <- resample(LandCov_taiga,blankras)
+LandCov_taiga <- mask(LandCov_taiga,blankras)
 
 Sprasts_taiga <- c(CDEM_taiga,
                     Rough_taiga,
@@ -1557,67 +1571,307 @@ Sprasts_taiga <- c(CDEM_taiga,
                     Taiga_MCMT
                     )
 
+```
 
 
+# Pseudo-absent data
+
+I originally started with PseuAbs rstats package, that was developed by:
+
+Descombes, P., Chauvier, Y., Brun, P., Righetti, D., Wüest, R.O., Karger, D.N., Zurell, D. & Zimmermann, N.E. (2022). Strategies for sampling pseudo-absences for species distribution models in complex mountainous terrain. bioRxiv, 2022.03.24.485693.
+
+The source code was reviewed through the GitHub source:
+
+https://github.com/filBe87/PseuAbs/blob/0744d9a753d570524140b0182f9e33e99d1a4585/R/wsl_samplePseuAbs.R
+
+There are three pseu.abs samples that are varied by the "add.strat = x" parameters. The value equals the proportion of pseudo samples that are sampled out of the stratification. So a setting of 0.2 will mean that 20% of the psdeuo-absences are randomly sampled within strata and 80% are randomly sampled without stratification. In contrast, a setting of 0.8 produces a more clumped psdeuo-absence sampling distribution within the strata with 20% sampling into areas outside of what might be expected as suitable habitat. A setting of 0.8 is selected for the model used, but other values can be tested. Note also that I use "presence", which includes only 33 of the original 66 known points. These were trimmed to include only points that exist within a vegetation pixel that was not classified with a "NA" value. The vegetation "NA" pixels can be filled in using other remote sensing data, such as a radar based NDVI. However, some of the values are "NA" by chance and this adds a layer of uncertainty in the input data. Adding uncertainty in the input data can improve on the predictability of the model. The PseuAbs package removes presence data in the sampling process.
+
+The current explanatory rasters include:
+
+Taiga_ExpRas <- c("CDEM_taiga","Rough_taiga","SA_taiga","NDVI_taiga","LandCov_taiga","Taiga_MAT","Taiga_MCMT")
+
+
+PseuAbs approach - not published yet.
+pseu.abs = wsl.samplePseuAbs(type="random",
+                            n=5000,
+                            env.stack=Sprasts_boreal,
+                            template_dir=here::here("Stratification"),
+                            pres=AMMA_pres,
+                            geores_fact=3,
+                            add.strat=0.8,
+                            env.strat_path=here::here("Stratification"),
+                            force_spat_thin='presences'
+                            )
+
+I shifted to dismo package approach:https://rspatial.org/raster/sdm/3_sdm_absence-background.html
+
+
+```{r Pseudo_Abs, echo=FALSE, eval=FALSE}
+
+# Original data in latlon per dismo style
+
+AMMA <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMMA_Total.shp"))
+EcoZone <- terra::project(EcoZone,AMMA)
+AMMA <- crop(AMMA,EcoZone)
+
+AMMA_pres <- as.data.frame(geom(AMMA))
+AMMA_pres <- AMMA_pres[,c(3:4)]
+AMMA_pres$ID = paste0("T",1:nrow(AMMA_pres))
+AMMA_pres <- AMMA_pres[,c(3,1:2)]
+AMMA_pres$PA <- 1
+names(AMMA_pres) <- c("ID","lat","lon","PA")
+
+# Dismo
+AMMA_presd <- AMMA_pres
+coordinates(AMMA_presd) <- ~lat+lon
+projection(AMMA_presd) <- CRS('+proj=longlat +datum=WGS84')
+
+# circles with a radius of 50 km
+x <- circles(AMMA_presd, d=50000, lonlat=TRUE)
+pol <- polygons(x)
+
+# sample randomly from all circles
+AMMA_Pseudo1 <- spsample(pol, nrow(AMMA_presd)/25, type='stratified', iter=25)
+AMMA_abs <- as.data.frame(geom(AMMA_Pseudo1))
+AMMA_abs$ID = paste0("F",1:nrow(AMMA_abs))
+AMMA_abs <- AMMA_abs[,c(4,2:3)]
+AMMA_abs$PA <- 0
+names(AMMA_abs) <- c("ID","lat","lon","PA")
+
+
+#AMTI
+
+AMTI <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMTI_Total.shp"))
+AMTI <- crop(AMTI,EcoZone)
+
+AMTI_pres <- as.data.frame(geom(AMTI))
+AMTI_pres <- AMTI_pres[,c(3:4)]
+AMTI_pres$ID = paste0("T",1:nrow(AMTI_pres))
+AMTI_pres <- AMTI_pres[,c(3,1:2)]
+AMTI_pres$PA <- 1
+names(AMTI_pres) <- c("ID","lat","lon","PA")
+
+# Dismo
+AMTI_presd <- AMTI_pres
+coordinates(AMTI_presd) <- ~lat+lon
+projection(AMTI_presd) <- CRS('+proj=longlat +datum=WGS84')
+
+# circles with a radius of 50 km
+x <- circles(AMTI_presd, d=50000, lonlat=TRUE)
+pol <- polygons(x)
+
+# sample randomly from all circles
+AMTI_Pseudo1 <- spsample(pol, nrow(AMTI_presd)/25, type='stratified', iter=25)
+AMTI_abs <- as.data.frame(geom(AMTI_Pseudo1))
+AMTI_abs$ID = paste0("F",1:nrow(AMTI_abs))
+AMTI_abs <- AMTI_abs[,c(4,2:3)]
+AMTI_abs$PA <- 0
+names(AMTI_abs) <- c("ID","lat","lon","PA")
+
+# ANBO
+ANBO <- vect(paste0(here("Inputs","AmphibianLocations"),"/ANBO_Total.shp"))
+ANBO <- crop(ANBO,EcoZone)
+
+ANBO_pres <- as.data.frame(geom(ANBO))
+ANBO_pres <- ANBO_pres[,c(3:4)]
+ANBO_pres$ID = paste0("T",1:nrow(ANBO_pres))
+ANBO_pres <- ANBO_pres[,c(3,1:2)]
+ANBO_pres$PA <- 1
+names(ANBO_pres) <- c("ID","lat","lon","PA")
+
+# Dismo
+ANBO_presd <- ANBO_pres
+coordinates(ANBO_presd) <- ~lat+lon
+projection(ANBO_presd) <- CRS('+proj=longlat +datum=WGS84')
+
+# circles with a radius of 50 km
+x <- circles(ANBO_presd, d=50000, lonlat=TRUE)
+pol <- polygons(x)
+
+# sample randomly from all circles
+ANBO_Pseudo1 <- spsample(pol, nrow(ANBO_presd)/25, type='stratified', iter=25)
+ANBO_abs <- as.data.frame(geom(ANBO_Pseudo1))
+ANBO_abs$ID = paste0("F",1:nrow(ANBO_abs))
+ANBO_abs <- ANBO_abs[,c(4,2:3)]
+ANBO_abs$PA <- 0
+names(ANBO_abs) <- c("ID","lat","lon","PA")
+
+# RASY
+RASY <- vect(paste0(here("Inputs","AmphibianLocations"),"/RASY_Total.shp"))
+RASY <- terra::project(RASY,  CRS('+proj=longlat +datum=WGS84'))
+RASY <- crop(RASY,EcoZone)
+
+RASY_pres <- as.data.frame(geom(RASY))
+RASY_pres <- RASY_pres[,c(3:4)]
+RASY_pres$ID = paste0("T",1:nrow(RASY_pres))
+RASY_pres <- RASY_pres[,c(3,1:2)]
+RASY_pres$PA <- 1
+names(RASY_pres) <- c("ID","lat","lon","PA")
+
+# Dismo
+RASY_presd <- RASY_pres
+coordinates(RASY_presd) <- ~lat+lon
+projection(RASY_presd) <- CRS('+proj=longlat +datum=WGS84')
+
+# circles with a radius of 50 km
+x <- circles(RASY_presd, d=50000, lonlat=TRUE)
+pol <- polygons(x)
+
+# sample randomly from all circles
+RASY_Pseudo1 <- spsample(pol, nrow(RASY_presd)/25, type='stratified', iter=25)
+RASY_abs <- as.data.frame(geom(RASY_Pseudo1))
+RASY_abs$ID = paste0("F",1:nrow(RASY_abs))
+RASY_abs <- RASY_abs[,c(4,2:3)]
+RASY_abs$PA <- 0
+names(RASY_abs) <- c("ID","lat","lon","PA")
+
+# RALU
+RALU <- vect(paste0(here("Inputs","AmphibianLocations"),"/RALU_Total.shp"))
+RALU <- terra::project(RALU,  CRS('+proj=longlat +datum=WGS84'))
+RALU <- crop(RALU,EcoZone)
+
+RALU_pres <- as.data.frame(geom(RALU))
+RALU_pres <- RALU_pres[,c(3:4)]
+RALU_pres$ID = paste0("T",1:nrow(RALU_pres))
+RALU_pres <- RALU_pres[,c(3,1:2)]
+RALU_pres$PA <- 1
+names(RALU_pres) <- c("ID","lat","lon","PA")
+
+# Dismo
+RALU_presd <- RALU_pres
+coordinates(RALU_presd) <- ~lat+lon
+projection(RALU_presd) <- CRS('+proj=longlat +datum=WGS84')
+
+# circles with a radius of 50 km
+x <- circles(RALU_presd, d=50000, lonlat=TRUE)
+pol <- polygons(x)
+
+# sample randomly from all circles
+RALU_Pseudo1 <- spsample(pol, nrow(RALU_presd)/25, type='stratified', iter=25)
+RALU_abs <- as.data.frame(geom(RALU_Pseudo1))
+RALU_abs$ID = paste0("F",1:nrow(RALU_abs))
+RALU_abs <- RALU_abs[,c(4,2:3)]
+RALU_abs$PA <- 0
+names(RALU_abs) <- c("ID","lat","lon","PA")
+
+# Buffer the points by 1 km
+AMMA_Pseudo1 <- terra::crop(vect(AMMA_Pseudo1), ext(EcoZone))
+AMMA_Pseudo1$ID <- paste0("F",1:nrow(AMMA_Pseudo1)) 
+
+AMTI_Pseudo1 <- crop(vect(AMTI_Pseudo1), ext(EcoZone))
+AMTI_Pseudo1$ID <- paste0("F",1:nrow(AMTI_Pseudo1)) 
+
+ANBO_Pseudo1 <- crop(vect(ANBO_Pseudo1), ext(EcoZone))
+ANBO_Pseudo1$ID <- paste0("F",1:nrow(ANBO_Pseudo1)) 
+
+RALU_Pseudo1 <- crop(vect(RALU_Pseudo1), ext(EcoZone))
+RALU_Pseudo1$ID <- paste0("F",1:nrow(RALU_Pseudo1)) 
+
+RASY_Pseudo1 <- crop(vect(RASY_Pseudo1), ext(EcoZone))
+RASY_Pseudo1$ID <- paste0("F",1:nrow(RASY_Pseudo1)) 
+
+AMMA_Pseudo1_1km <- buffer(AMMA_Pseudo1,
+                   1000)
+AMTI_Pseudo1_1km <- buffer(AMTI_Pseudo1,
+                   1000)
+ANBO_Pseudo1_1km <- buffer(ANBO_Pseudo1,
+                   1000)
+RALU_Pseudo1_1km <- buffer(RALU_Pseudo1,
+                   1000)
+RASY_Pseudo1_1km <- buffer(RASY_Pseudo1,
+                   1000)
 
 ```
 
 # Random Forest models
 
-AMMA <- 
+I have sampled the median value for all explanatory rasters 1 km around known points and the pseudo absence points.
+
+AMMA <- Ambystoma macrodactylum
+AMTI <- Ambystoma tigrinum
+ANBO <- Anaxyrus boreas
+RASY <- Rana sylvatica
+RALU <- Rana luteiventris
+
+AMMA_1km <- buffer(AMMA,
+                   1000)
+AMTI_1km <- buffer(AMTI,
+                   1000)
+ANBO_1km <- buffer(ANBO,
+                   1000)
+RALU_1km <- buffer(RALU,
+                   1000)
+RASY_1km <- buffer(RASY,
+                   1000)
+
 
 ```{r RF_Stat, echo=TRUE, eval=FALSE}
 
+# Start AMMA - True Record
+AMMA_1km$ID <- paste0("T",AMMA_pres$ID)
+AMMA_1km_montane <- crop(AMMA_1km, Montane)
 
-# extract predictor values for points
-# Simple
-#TRI_vals <- extract(TRI_dem, met_datav)
+# Extract the median values - True Records
+Montane_AMMA_T <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             AMMA_1km_montane,
+             na.rm=TRUE)
 
-TRI_vals <- extract(TRI_dem, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
-colnames(TRI_vals) <- c("ID","TRI_vals")
+AMMA_1km_montane$ID <- paste0("T",Montane_AMMA_T$ID)
+Montane_AMMA_T$ID <- AMMA_1km_montane$ID
+AMMA_1km_montane <- AMMA_1km_montane[,85]
+Montane_AMMA_T$PA <- 1
 
-Slope_vals <- extract(Slope_dem, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
-colnames(Slope_vals) <- c("ID","Slope_vals")
+# Pseudo AMMA
+AMMA_Pseudo1_1km <- terra::project(AMMA_Pseudo1_1km, Montane)
+AMMA_F_1km_montane <- crop(AMMA_Pseudo1_1km, Montane)
 
-Rad_Ruf_vals <- extract(Rad_Ruf, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
-colnames(Rad_Ruf_vals) <- c("ID","Ruf_vals")
-
-Rad_Veg_vals <- extract(Rad_Veg, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
-colnames(Rad_Veg_vals) <- c("ID","Veg_vals")
-
-GLC_vals <- extract(GLC_LS, met_datav, cells=FALSE, xy=FALSE, method="bilinear")
-colnames(GLC_vals) <- c("ID","GLC_vals")
-
-# combine with response (excluding the ID column)
-# combine the metal conc with the TRI val
-#v <- data.frame(cbind(pa=xy[,1], e))
-
-met_data <- data.frame(cbind(metal=values(met_datav),
-                             TRI_vals=TRI_vals[,2]),
-                             Slope_vals=Slope_vals[,2],
-                             Veg_vals=Rad_Veg_vals[,2],
-                             Ruf_vals=Rad_Ruf_vals[,2],
-                             GLC_vals=GLC_vals[,2]
-                       )
+AMMA_F_1km_montane$ID <- AMMA_Pseudo1$ID
+AMMA_F_1km_montane <- crop(AMMA_Pseudo1_1km, Montane)
 
 
-## Arsenic ----
-rfm <- randomForest(formula=As_ppm ~ TRI_vals + Slope_vals + Veg_vals + Ruf_vals + GLC_vals, data=met_data)
+# Extract the median values - Pseudo Records
+Montane_AMMA_F <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             AMMA_F_1km_montane,
+             na.rm=FALSE)
+
+Montane_AMMA_F$ID <- AMMA_F_1km_montane$ID
+Montane_AMMA_F$PA <- 0
+
+Montane_AMMA_T2 <- merge(Montane_AMMA_T,AMMA_pres,by=c("ID","PA"))
+Montane_AMMA_F2 <- merge(Montane_AMMA_F,AMMA_abs,by=c("ID","PA"))
+
+AMMA_data <- rbind(Montane_AMMA_T2,Montane_AMMA_F2)
+
+names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+AMMA_data$PA <- as.factor(AMMA_data$PA)
 
 
-varImpPlot(rfm,
+## AMMA ----
+AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMMA_data)
+
+
+varImpPlot(AMMA_rfm,
            main = "Bagging: Variable importance")
 
 
 ## approach 1, use the "cpkgs" argument 
 modlist <- list()
-modlist[[1]] <- assign(paste0(metal,"_rfp1"),predict(Sprasts,
-               rfm,
+modlist[[1]] <- assign(paste0("AMMA","_rfp1"),predict(Sprasts_montane,
+               AMMA_rfm,
                cores=n.cores,
                cpkgs="randomForest")
 )
 
-nmx <- paste0(metal,"_rfp1")
+
+AMMA_SDM <- modelling('RF', AMMA_data, 
+                 Sprasts_montane, Xcol = 'lon', Ycol = 'lat')
+
+
+nmx <- paste0("AMMA","_rfp1")
 
 writeRaster(modlist[[1]],paste0(here("Outputs","Rasters"),"/RF_As_rp1a.tif"), overwrite=TRUE)
 
@@ -1629,5 +1883,7 @@ tm_shape(modlist[[1]]) +
 tm_scale_bar(position = c("left", "bottom"))+
 tm_layout(main.title = "Copper",
             bg.color = "lightgrey", inner.margins = c(-0.5, -0.3, -0.2, -0.4)) +  tm_compass(position = c("right", "top"), size = 2)
+
+```
 
 
