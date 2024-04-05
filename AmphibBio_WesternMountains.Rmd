@@ -2615,11 +2615,11 @@ RASY_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
                                  "/RASY_boreal_RFmod.tif"))
 RASY_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
                                  "/RASY_montane_RFmod.tif"))
-RASY_RFmod <- merge(RASY_boreal_RFmod,RASY_montane_RFmod)
+RASY_RFmod1 <- merge(RASY_boreal_RFmod,RASY_montane_RFmod)
 
 RASY_taiga_RFmod <- rast(paste0(here("Outputs","Predictions"),
                                  "/RASY_taiga_RFmod.tif"))
-RASY_RFmod <- merge(RASY_taiga_RFmod,RASY_taiga_RFmod)
+RASY_RFmod <- merge(RASY_RFmod1,RASY_taiga_RFmod)
 
 AMTI_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
                                  "/AMTI_montane_RFmod.tif"))
@@ -2627,25 +2627,25 @@ AMTI_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
 #AMMA
 AMMA_map <- tm_shape(AMMA_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
-            title = "AMTI SDM")+
+            title = "AMMA SDM") +
 tm_layout(legend.outside = TRUE)
 
 #ANBO
 ANBO_map <- tm_shape(ANBO_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
-            title = "AMTI SDM")+
+            title = "ANBO SDM") +
 tm_layout(legend.outside = TRUE)
 
 #RALU
 RALU_map <- tm_shape(RALU_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
-            title = "AMTI SDM")+
+            title = "RALU SDM")+
 tm_layout(legend.outside = TRUE)
 
 #RASY
 RASY_map <- tm_shape(RASY_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
-            title = "AMTI SDM")+
+            title = "RASY SDM")+
 tm_layout(legend.outside = TRUE)
 
 #AMTI
