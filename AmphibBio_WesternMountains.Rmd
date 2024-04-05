@@ -1076,38 +1076,169 @@ CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
 ```{r Amphib_locs, echo=TRUE, eval=FALSE}
 
 AMMA <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMMA_Total.shp"))
+AMMA$ID <- 1:nrow(AMMA)
 
+# BiodiversityR approach to spatially thin the records
 AMMAg <- data.frame(crds(AMMA))
 AMMAgdf <- SpatialPointsDataFrame(coords = AMMAg[,c(1,2)], data = AMMAg,
                                proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
 
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
 
-AMMAgt <- ensemble.spatialThin(AMMAgdf,
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+AMMAgt <- ensemble.spatialThin.quant(AMMAg,
                                thin.km = 1,
                                runs = 100,
-                               silent = FALSE,
-                               verbose = FALSE,
-                               return.notRetained = FALSE)
+                               silent = TRUE,
+                               verbose = TRUE)
 
-df_near <- st_join(df, df1, join = st_nearest_feature)
+})
+stopCluster(my.cluster)
 
-AMMA <- project(AMMA,"EPSG:32610")
+AMMAmat <- as.matrix(crds(AMMA))
+crspoints <- "+proj=longlat +datum=WGS84"
+AMMA_pts <- vect(AMMAmat, crs = crspoints)
+AMMA_pts$ID <- AMMA$ID
+AMMA_pts_s <- sf::st_as_sf(AMMA_pts)
+
+AMMAgt_mat <- as.matrix(AMMAgt)
+AMMAgt_pt <- vect(AMMAgt_mat, crs = crspoints)
+AMMAgt_pt_s <- sf::st_as_sf(AMMAgt_pt)
+
+
+df_near <- st_join(AMMAgt_pt_s, AMMA_pts_s, join = st_nearest_feature)
+AMMA_join <- vect(df_near)
+AMMA <- terra::project(AMMA_join,"EPSG:32610")
 AMMA <- crop(AMMA, EcoZone)
-  
+
+# Tigrinum does not need to be thinned
 AMTI <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMTI_Total.shp"))
-AMTI <- project(AMTI,"EPSG:32610")
+AMTI <- terra::project(AMTI,"EPSG:32610")
 AMTI <- crop(AMTI, EcoZone)
 
+#ANBO
 ANBO <- vect(paste0(here("Inputs","AmphibianLocations"),"/ANBO_Total.shp"))
-ANBO <- project(ANBO,"EPSG:32610")
+
+# BiodiversityR approach to spatially thin the records
+ANBOg <- data.frame(crds(ANBO))
+ANBOgdf <- SpatialPointsDataFrame(coords = ANBOg[,c(1,2)], data = ANBOg,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+ANBOgt <- ensemble.spatialThin.quant(ANBOg,
+                               thin.km = 1,
+                               runs = 100)
+
+})
+stopCluster(my.cluster)
+
+ANBOmat <- as.matrix(crds(ANBO))
+crspoints <- "+proj=longlat +datum=WGS84"
+ANBO_pts <- vect(ANBOmat, crs = crspoints)
+ANBO_pts$ID <- ANBO$ID
+ANBO_pts_s <- sf::st_as_sf(ANBO_pts)
+
+ANBOgt_mat <- as.matrix(ANBOgt)
+ANBOgt_pt <- vect(ANBOgt_mat, crs = crspoints)
+ANBOgt_pt_s <- sf::st_as_sf(ANBOgt_pt)
+
+
+df_near <- st_join(ANBOgt_pt_s, ANBO_pts_s, join = st_nearest_feature)
+ANBO_join <- vect(df_near)
+ANBO <- terra::project(ANBO,"EPSG:32610")
 ANBO <- crop(ANBO, EcoZone)
 
+
+#RALU
 RALU <- vect(paste0(here("Inputs","AmphibianLocations"),"/RALU_Total.shp"))
-RALU <- project(RALU,"EPSG:32610")
+# BiodiversityR approach to spatially thin the records
+RALUg <- data.frame(crds(RALU))
+RALUgdf <- SpatialPointsDataFrame(coords = RALUg[,c(1,2)], data = RALUg,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RALUgt <- ensemble.spatialThin.quant(RALUg,
+                               thin.km = 1,
+                               runs = 100)
+
+})
+stopCluster(my.cluster)
+
+RALUmat <- as.matrix(crds(RALU))
+crspoints <- "+proj=longlat +datum=WGS84"
+RALU_pts <- vect(RALUmat, crs = crspoints)
+RALU_pts$ID <- RALU$ID
+RALU_pts_s <- sf::st_as_sf(RALU_pts)
+
+RALUgt_mat <- as.matrix(RALUgt)
+RALUgt_pt <- vect(RALUgt_mat, crs = crspoints)
+RALUgt_pt_s <- sf::st_as_sf(RALUgt_pt)
+
+
+df_near <- st_join(RALUgt_pt_s, RALU_pts_s, join = st_nearest_feature)
+RALU_join <- vect(df_near)
+RALU <- terra::project(RALU,"EPSG:32610")
 RALU <- crop(RALU, EcoZone)
 
+#RASY
 RASY <- vect(paste0(here("Inputs","AmphibianLocations"),"/RASY_Total.shp"))
-RASY <- project(RASY,"EPSG:32610")
+# BiodiversityR approach to spatially thin the records
+RASYg <- data.frame(crds(RASY))
+RASYgdf <- SpatialPointsDataFrame(coords = RASYg[,c(1,2)], data = RASYg,
+                               proj4string = CRS("+proj=longlat +datum=WGS84 +ellps=WGS84 +towgs84=0,0,0"))
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RASYgt <- ensemble.spatialThin.quant(RASYg,
+                               thin.km = 1,
+                               runs = 100)
+
+})
+stopCluster(my.cluster)
+
+RASYmat <- as.matrix(crds(RASY))
+crspoints <- "+proj=longlat +datum=WGS84"
+RASY_pts <- vect(RASYmat, crs = crspoints)
+RASY_pts$ID <- RASY$ID
+RASY_pts_s <- sf::st_as_sf(RASY_pts)
+
+RASYgt_mat <- as.matrix(RASYgt)
+RASYgt_pt <- vect(RASYgt_mat, crs = crspoints)
+RASYgt_pt_s <- sf::st_as_sf(RASYgt_pt)
+
+
+df_near <- st_join(RASYgt_pt_s, RASY_pts_s, join = st_nearest_feature)
+RASY_join <- vect(df_near)
+RASY <- terra::project(RASY,"EPSG:32610")
 RASY <- crop(RASY, EcoZone)
 
 # Buffer the points by 1 km
@@ -1150,7 +1281,7 @@ TMN01 – TMN12 	January - December minimum mean temperatures (°C)
 ```{r, Explanatory_Vars, echo=FALSE}
 
 # Shapefiles
-EcoZone <- project(EcoZone,"EPSG:32610")
+EcoZone <- terra::project(EcoZone,"EPSG:32610")
 Boreal <- EcoZone[1] # Boreal
 Montane <- EcoZone[2] # Montane
 Taiga <- EcoZone[3] # Taiga
@@ -1159,7 +1290,7 @@ CDEM_Total <- rast(paste0(here::here("Inputs",
                                      "Rasters",
                                      "Explanatory"),
                           "/CDEM_Total.tif"))
-CDEM_Total <- project(CDEM_Total,
+CDEM_Total <- terra::project(CDEM_Total,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1175,7 +1306,7 @@ writeRaster(CDEM_Total,
 
 CDEM_boreal <- rast(paste0(here("Outputs","Rasters","Explanatory"),
                    "/CDEM_boreal.asc"))
-CDEM_boreal <- project(CDEM_boreal,
+CDEM_boreal <- terra::project(CDEM_boreal,
                        "EPSG:32610",
                       threads=n.cores,
                       filename=paste0(here::here("Inputs",
@@ -1187,7 +1318,7 @@ CDEM_boreal <- project(CDEM_boreal,
 
 CDEM_montane <- rast(paste0(here("Outputs","Rasters","Explanatory"),
                    "/CDEM_montane.asc"))
-CDEM_montane <- project(CDEM_montane,
+CDEM_montane <- terra::project(CDEM_montane,
                        "EPSG:32610",
                       threads=n.cores,
                       filename=paste0(here::here("Inputs",
@@ -1199,7 +1330,7 @@ CDEM_montane <- project(CDEM_montane,
 
 CDEM_taiga <- rast(paste0(here("Outputs","Rasters","Explanatory"),
                    "/CDEM_taiga.asc"))
-CDEM_taiga <- project(CDEM_taiga,
+CDEM_taiga <- terra::project(CDEM_taiga,
                        "EPSG:32610",
                       threads=n.cores,
                       filename=paste0(here::here("Inputs",
@@ -1253,7 +1384,7 @@ Boreal_MAT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MAT.asc"))
 
-Boreal_MAT <- project(Boreal_MAT,
+Boreal_MAT <- terra::project(Boreal_MAT,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1275,7 +1406,7 @@ Montane_MAT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MAT.asc"))
 
-Montane_MAT <- project(Montane_MAT,
+Montane_MAT <- terra::project(Montane_MAT,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1295,7 +1426,7 @@ Taiga_MAT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MAT.asc"))
 
-Taiga_MAT <- project(Taiga_MAT,
+Taiga_MAT <- terra::project(Taiga_MAT,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1317,7 +1448,7 @@ Boreal_MCMT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MCMT.asc"))
 
-Boreal_MCMT <- project(Boreal_MCMT,
+Boreal_MCMT <- terra::project(Boreal_MCMT,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1338,7 +1469,7 @@ Montane_MCMT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MCMT.asc"))
 
-Montane_MCMT <- project(Montane_MCMT,
+Montane_MCMT <- terra::project(Montane_MCMT,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1358,7 +1489,7 @@ Taiga_MCMT <- rast(paste0(here("Outputs",
                               "Normal_1991_2020Y"),
                           "/MCMT.asc"))
 
-Taiga_MCMT <- project(Taiga_MCMT,
+Taiga_MCMT <- terra::project(Taiga_MCMT,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1378,7 +1509,7 @@ NDVI <- rast(paste0(here::here("Inputs",
                                      "Explanatory"),
                           "/MODIS_FULL.tif"))
 
-NDVI <- project(NDVI,
+NDVI <- terra::project(NDVI,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1398,7 +1529,7 @@ LandCov <- rast(paste0(here::here("Inputs",
                                   "Explanatory"),
                                      "/LandCov.tif"))
 
-LandCov <- project(LandCov,
+LandCov <- terra::project(LandCov,
                        "EPSG:32610",
                       threads=n.cores,
                       res=250)
@@ -1876,24 +2007,656 @@ Montane_AMMA_T2 <- merge(Montane_AMMA_T,AMMA_pres,by=c("ID","PA"))
 Montane_AMMA_F2 <- merge(Montane_AMMA_F,AMMA_abs,by=c("ID","PA"))
 
 AMMA_data <- rbind(Montane_AMMA_T2,Montane_AMMA_F2)
-
+names(AMMA_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
 names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
 AMMA_data$PA <- as.numeric(AMMA_data$PA)
 
 ## AMMA ----
 AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMMA_data)
 
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
 
-model1 <- predict(Sprasts_montane, AMMA_rfm)
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
 
-tm_shape(model1)+
-tm_raster(style= "cont")+
+system.time({
+AMMA_montane_mod <- predict(Sprasts_montane, AMMA_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(AMMA_montane_mod,paste0(here("Outputs","Predictions"),"/AMMA_montane_RFmod.tif"), overwrite=TRUE)
+
+## AMMA - Boreal
+# Start AMMA - True Record
+AMMA_1km$ID <- paste0("T",AMMA_pres$ID)
+AMMA_1km_boreal <- crop(AMMA_1km, Boreal)
+
+# Extract the median values - True Records
+Boreal_AMMA_T <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             AMMA_1km_boreal,
+             na.rm=TRUE)
+
+AMMA_1km_boreal$ID <- paste0("T",Boreal_AMMA_T$ID)
+Boreal_AMMA_T$ID <- AMMA_1km_boreal$ID
+AMMA_1km_boreal <- AMMA_1km_boreal[,85]
+Boreal_AMMA_T$PA <- 1
+
+# Pseudo AMMA
+AMMA_Pseudo1_1km <- terra::project(AMMA_Pseudo1_1km, Boreal)
+AMMA_F_1km_boreal <- crop(AMMA_Pseudo1_1km, Boreal)
+
+AMMA_F_1km_boreal$ID <- AMMA_Pseudo1$ID
+AMMA_F_1km_boreal <- crop(AMMA_Pseudo1_1km, Boreal)
+
+# Extract the median values - Pseudo Records
+Boreal_AMMA_F <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             AMMA_F_1km_boreal,
+             na.rm=FALSE)
+
+Boreal_AMMA_F$ID <- AMMA_F_1km_boreal$ID
+Boreal_AMMA_F$PA <- 0
+
+Boreal_AMMA_T2 <- merge(Boreal_AMMA_T,AMMA_pres,by=c("ID","PA"))
+Boreal_AMMA_F2 <- merge(Boreal_AMMA_F,AMMA_abs,by=c("ID","PA"))
+
+AMMA_data <- rbind(Boreal_AMMA_T2,Boreal_AMMA_F2)
+names(AMMA_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_boreal) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+AMMA_data$PA <- as.numeric(AMMA_data$PA)
+
+## AMMA ----
+AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMMA_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+AMMA_boreal_mod <- predict(Sprasts_boreal, AMMA_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(AMMA_boreal_mod,paste0(here("Outputs","Predictions"),"/AMMA_boreal_RFmod.tif"), overwrite=TRUE)
+
+## ANBO
+# Start ANBO - True Record
+ANBO_1km$ID <- paste0("T",ANBO_pres$ID)
+ANBO_1km_montane <- crop(ANBO_1km, Montane)
+
+# Extract the median values - True Records
+Montane_ANBO_T <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             ANBO_1km_montane,
+             na.rm=TRUE)
+
+ANBO_1km_montane$ID <- paste0("T",Montane_ANBO_T$ID)
+Montane_ANBO_T$ID <- ANBO_1km_montane$ID
+ANBO_1km_montane <- ANBO_1km_montane[,85]
+Montane_ANBO_T$PA <- 1
+
+# Pseudo ANBO
+ANBO_Pseudo1_1km <- terra::project(ANBO_Pseudo1_1km, Montane)
+ANBO_F_1km_montane <- crop(ANBO_Pseudo1_1km, Montane)
+
+ANBO_F_1km_montane$ID <- ANBO_Pseudo1$ID
+ANBO_F_1km_montane <- crop(ANBO_Pseudo1_1km, Montane)
+
+
+# Extract the median values - Pseudo Records
+Montane_ANBO_F <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             ANBO_F_1km_montane,
+             na.rm=FALSE)
+
+Montane_ANBO_F$ID <- ANBO_F_1km_montane$ID
+Montane_ANBO_F$PA <- 0
+
+Montane_ANBO_T2 <- merge(Montane_ANBO_T,ANBO_pres,by=c("ID","PA"))
+Montane_ANBO_F2 <- merge(Montane_ANBO_F,ANBO_abs,by=c("ID","PA"))
+
+ANBO_data <- rbind(Montane_ANBO_T2,Montane_ANBO_F2)
+ANBO_data <- na.omit(ANBO_data)
+names(ANBO_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+ANBO_data$PA <- as.numeric(ANBO_data$PA)
+
+## ANBO ----
+ANBO_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=ANBO_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+ANBO_montane_mod <- predict(Sprasts_montane, ANBO_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(ANBO_montane_mod,paste0(here("Outputs","Predictions"),"/ANBO_montane_RFmod.tif"), overwrite=TRUE)
+
+## ANBO - Boreal
+# Start ANBO - True Record
+ANBO_1km$ID <- paste0("T",ANBO_pres$ID)
+ANBO_1km_boreal <- crop(ANBO_1km, Boreal)
+
+# Extract the median values - True Records
+Boreal_ANBO_T <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             ANBO_1km_boreal,
+             na.rm=TRUE)
+
+ANBO_1km_boreal$ID <- paste0("T",Boreal_ANBO_T$ID)
+Boreal_ANBO_T$ID <- ANBO_1km_boreal$ID
+ANBO_1km_boreal <- ANBO_1km_boreal[,85]
+Boreal_ANBO_T$PA <- 1
+
+# Pseudo ANBO
+ANBO_Pseudo1_1km <- terra::project(ANBO_Pseudo1_1km, Boreal)
+ANBO_F_1km_boreal <- crop(ANBO_Pseudo1_1km, Boreal)
+
+ANBO_F_1km_boreal$ID <- ANBO_Pseudo1$ID
+ANBO_F_1km_boreal <- crop(ANBO_Pseudo1_1km, Boreal)
+
+# Extract the median values - Pseudo Records
+Boreal_ANBO_F <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             ANBO_F_1km_boreal,
+             na.rm=FALSE)
+
+Boreal_ANBO_F$ID <- ANBO_F_1km_boreal$ID
+Boreal_ANBO_F$PA <- 0
+
+Boreal_ANBO_T2 <- merge(Boreal_ANBO_T,ANBO_pres,by=c("ID","PA"))
+Boreal_ANBO_F2 <- merge(Boreal_ANBO_F,ANBO_abs,by=c("ID","PA"))
+
+ANBO_data <- rbind(Boreal_ANBO_T2,Boreal_ANBO_F2)
+ANBO_data <- na.omit(ANBO_data)
+
+names(ANBO_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_boreal) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+ANBO_data$PA <- as.numeric(ANBO_data$PA)
+
+## ANBO ----
+ANBO_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=ANBO_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+ANBO_boreal_mod <- predict(Sprasts_boreal, ANBO_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(ANBO_boreal_mod,paste0(here("Outputs","Predictions"),"/ANBO_boreal_RFmod.tif"), overwrite=TRUE)
+
+
+## RALU
+# Start RALU - True Record
+RALU_1km$ID <- paste0("T",RALU_pres$ID)
+RALU_1km_montane <- crop(RALU_1km, Montane)
+
+# Extract the median values - True Records
+Montane_RALU_T <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             RALU_1km_montane,
+             na.rm=TRUE)
+
+RALU_1km_montane$ID <- paste0("T",Montane_RALU_T$ID)
+Montane_RALU_T$ID <- RALU_1km_montane$ID
+RALU_1km_montane <- RALU_1km_montane[,85]
+Montane_RALU_T$PA <- 1
+
+# Pseudo RALU
+RALU_Pseudo1_1km <- terra::project(RALU_Pseudo1_1km, Montane)
+RALU_F_1km_montane <- crop(RALU_Pseudo1_1km, Montane)
+
+RALU_F_1km_montane$ID <- RALU_Pseudo1$ID
+RALU_F_1km_montane <- crop(RALU_Pseudo1_1km, Montane)
+
+
+# Extract the median values - Pseudo Records
+Montane_RALU_F <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             RALU_F_1km_montane,
+             na.rm=FALSE)
+
+Montane_RALU_F$ID <- RALU_F_1km_montane$ID
+Montane_RALU_F$PA <- 0
+
+Montane_RALU_T2 <- merge(Montane_RALU_T,RALU_pres,by=c("ID","PA"))
+Montane_RALU_F2 <- merge(Montane_RALU_F,RALU_abs,by=c("ID","PA"))
+
+RALU_data <- rbind(Montane_RALU_T2,Montane_RALU_F2)
+RALU_data <- na.omit(RALU_data)
+names(RALU_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+RALU_data$PA <- as.numeric(RALU_data$PA)
+
+## RALU ----
+RALU_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RALU_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RALU_montane_mod <- predict(Sprasts_montane, RALU_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(RALU_montane_mod,paste0(here("Outputs","Predictions"),"/RALU_montane_RFmod.tif"), overwrite=TRUE)
+
+## RALU - Boreal
+# Start RALU - True Record
+RALU_1km$ID <- paste0("T",RALU_pres$ID)
+RALU_1km_boreal <- crop(RALU_1km, Boreal)
+
+# Extract the median values - True Records
+Boreal_RALU_T <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             RALU_1km_boreal,
+             na.rm=TRUE)
+
+RALU_1km_boreal$ID <- paste0("T",Boreal_RALU_T$ID)
+Boreal_RALU_T$ID <- RALU_1km_boreal$ID
+RALU_1km_boreal <- RALU_1km_boreal[,85]
+Boreal_RALU_T$PA <- 1
+
+# Pseudo RALU
+RALU_Pseudo1_1km <- terra::project(RALU_Pseudo1_1km, Boreal)
+RALU_F_1km_boreal <- crop(RALU_Pseudo1_1km, Boreal)
+
+RALU_F_1km_boreal$ID <- RALU_Pseudo1$ID
+RALU_F_1km_boreal <- crop(RALU_Pseudo1_1km, Boreal)
+
+# Extract the median values - Pseudo Records
+Boreal_RALU_F <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             RALU_F_1km_boreal,
+             na.rm=FALSE)
+
+Boreal_RALU_F$ID <- RALU_F_1km_boreal$ID
+Boreal_RALU_F$PA <- 0
+
+Boreal_RALU_T2 <- merge(Boreal_RALU_T,RALU_pres,by=c("ID","PA"))
+Boreal_RALU_F2 <- merge(Boreal_RALU_F,RALU_abs,by=c("ID","PA"))
+
+RALU_data <- rbind(Boreal_RALU_T2,Boreal_RALU_F2)
+RALU_data <- na.omit(RALU_data)
+
+names(RALU_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_boreal) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+RALU_data$PA <- as.numeric(RALU_data$PA)
+
+## RALU ----
+RALU_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RALU_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RALU_boreal_mod <- predict(Sprasts_boreal, RALU_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(RALU_boreal_mod,paste0(here("Outputs","Predictions"),"/RALU_boreal_RFmod.tif"), overwrite=TRUE)
+
+## RASY
+# Start RASY - True Record
+RASY_1km$ID <- paste0("T",RASY_pres$ID)
+RASY_1km_montane <- crop(RASY_1km, Montane)
+
+# Extract the median values - True Records
+Montane_RASY_T <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             RASY_1km_montane,
+             na.rm=TRUE)
+
+RASY_1km_montane$ID <- paste0("T",Montane_RASY_T$ID)
+Montane_RASY_T$ID <- RASY_1km_montane$ID
+RASY_1km_montane <- RASY_1km_montane[,85]
+Montane_RASY_T$PA <- 1
+
+# Pseudo RASY
+RASY_Pseudo1_1km <- terra::project(RASY_Pseudo1_1km, Montane)
+RASY_F_1km_montane <- crop(RASY_Pseudo1_1km, Montane)
+
+RASY_F_1km_montane$ID <- RASY_Pseudo1$ID
+RASY_F_1km_montane <- crop(RASY_Pseudo1_1km, Montane)
+
+
+# Extract the median values - Pseudo Records
+Montane_RASY_F <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             RASY_F_1km_montane,
+             na.rm=FALSE)
+
+Montane_RASY_F$ID <- RASY_F_1km_montane$ID
+Montane_RASY_F$PA <- 0
+
+Montane_RASY_T2 <- merge(Montane_RASY_T,RASY_pres,by=c("ID","PA"))
+Montane_RASY_F2 <- merge(Montane_RASY_F,RASY_abs,by=c("ID","PA"))
+
+RASY_data <- rbind(Montane_RASY_T2,Montane_RASY_F2)
+RASY_data <- na.omit(RASY_data)
+names(RASY_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+RASY_data$PA <- as.numeric(RASY_data$PA)
+
+## RASY ----
+RASY_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RASY_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RASY_montane_mod <- predict(Sprasts_montane, RASY_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(RASY_montane_mod,paste0(here("Outputs","Predictions"),"/RASY_montane_RFmod.tif"), overwrite=TRUE)
+
+## RASY - Boreal
+# Start RASY - True Record
+RASY_1km$ID <- paste0("T",RASY_pres$ID)
+RASY_1km_boreal <- crop(RASY_1km, Boreal)
+
+# Extract the median values - True Records
+Boreal_RASY_T <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             RASY_1km_boreal,
+             na.rm=TRUE)
+
+RASY_1km_boreal$ID <- paste0("T",Boreal_RASY_T$ID)
+Boreal_RASY_T$ID <- RASY_1km_boreal$ID
+RASY_1km_boreal <- RASY_1km_boreal[,85]
+Boreal_RASY_T$PA <- 1
+
+# Pseudo RASY
+RASY_Pseudo1_1km <- terra::project(RASY_Pseudo1_1km, Boreal)
+RASY_F_1km_boreal <- crop(RASY_Pseudo1_1km, Boreal)
+
+RASY_F_1km_boreal$ID <- RASY_Pseudo1$ID
+RASY_F_1km_boreal <- crop(RASY_Pseudo1_1km, Boreal)
+
+# Extract the median values - Pseudo Records
+Boreal_RASY_F <- terra::extract(Sprasts_boreal,
+             fun="median",
+             method="bilinear",
+             RASY_F_1km_boreal,
+             na.rm=FALSE)
+
+Boreal_RASY_F$ID <- RASY_F_1km_boreal$ID
+Boreal_RASY_F$PA <- 0
+
+Boreal_RASY_T2 <- merge(Boreal_RASY_T,RASY_pres,by=c("ID","PA"))
+Boreal_RASY_F2 <- merge(Boreal_RASY_F,RASY_abs,by=c("ID","PA"))
+
+RASY_data <- rbind(Boreal_RASY_T2,Boreal_RASY_F2)
+RASY_data <- na.omit(RASY_data)
+
+names(RASY_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_boreal) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+RASY_data$PA <- as.numeric(RASY_data$PA)
+
+## RASY ----
+RASY_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RASY_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RASY_boreal_mod <- predict(Sprasts_boreal, RASY_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(RASY_boreal_mod,paste0(here("Outputs","Predictions"),"/RASY_boreal_RFmod.tif"), overwrite=TRUE)
+
+## RASY - Taiga
+# Start RASY - True Record
+RASY_1km$ID <- paste0("T",RASY_pres$ID)
+RASY_1km_taiga <- crop(RASY_1km, Taiga)
+
+# Extract the median values - True Records
+Taiga_RASY_T <- terra::extract(Sprasts_taiga,
+             fun="median",
+             method="bilinear",
+             RASY_1km_taiga,
+             na.rm=TRUE)
+
+RASY_1km_taiga$ID <- paste0("T",Taiga_RASY_T$ID)
+Taiga_RASY_T$ID <- RASY_1km_taiga$ID
+RASY_1km_taiga <- RASY_1km_taiga[,85]
+Taiga_RASY_T$PA <- 1
+
+# Pseudo RASY
+RASY_Pseudo1_1km <- terra::project(RASY_Pseudo1_1km, Taiga)
+RASY_F_1km_taiga <- crop(RASY_Pseudo1_1km, Taiga)
+
+RASY_F_1km_taiga$ID <- RASY_Pseudo1$ID
+RASY_F_1km_taiga <- crop(RASY_Pseudo1_1km, Taiga)
+
+# Extract the median values - Pseudo Records
+Taiga_RASY_F <- terra::extract(Sprasts_taiga,
+             fun="median",
+             method="bilinear",
+             RASY_F_1km_taiga,
+             na.rm=FALSE)
+
+Taiga_RASY_F$ID <- RASY_F_1km_taiga$ID
+Taiga_RASY_F$PA <- 0
+
+Taiga_RASY_T2 <- merge(Taiga_RASY_T,RASY_pres,by=c("ID","PA"))
+Taiga_RASY_F2 <- merge(Taiga_RASY_F,RASY_abs,by=c("ID","PA"))
+
+RASY_data <- rbind(Taiga_RASY_T2,Taiga_RASY_F2)
+RASY_data <- na.omit(RASY_data)
+
+names(RASY_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_taiga) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+RASY_data$PA <- as.numeric(RASY_data$PA)
+
+## RASY ----
+RASY_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RASY_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+RASY_taiga_mod <- predict(Sprasts_taiga, RASY_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(RASY_taiga_mod,paste0(here("Outputs","Predictions"),"/RASY_taiga_RFmod.tif"), overwrite=TRUE)
+
+## AMTI - Montane
+# Start AMTI - True Record
+AMTI_1km$ID <- paste0("T",AMTI_pres$ID)
+AMTI_1km_montane <- crop(AMTI_1km, Montane)
+
+# Extract the median values - True Records
+Montane_AMTI_T <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             AMTI_1km_montane,
+             na.rm=TRUE)
+
+AMTI_1km_montane$ID <- paste0("T",Montane_AMTI_T$ID)
+Montane_AMTI_T$ID <- AMTI_1km_montane$ID
+AMTI_1km_montane <- AMTI_1km_montane[,85]
+Montane_AMTI_T$PA <- 1
+
+# Pseudo AMTI
+AMTI_Pseudo1_1km <- terra::project(AMTI_Pseudo1_1km, Montane)
+AMTI_F_1km_montane <- crop(AMTI_Pseudo1_1km, Montane)
+
+AMTI_F_1km_montane$ID <- AMTI_Pseudo1$ID
+AMTI_F_1km_montane <- crop(AMTI_Pseudo1_1km, Montane)
+
+# Extract the median values - Pseudo Records
+Montane_AMTI_F <- terra::extract(Sprasts_montane,
+             fun="median",
+             method="bilinear",
+             AMTI_F_1km_montane,
+             na.rm=FALSE)
+
+Montane_AMTI_F$ID <- AMTI_F_1km_montane$ID
+Montane_AMTI_F$PA <- 0
+
+Montane_AMTI_T2 <- merge(Montane_AMTI_T,AMTI_pres,by=c("ID","PA"))
+Montane_AMTI_F2 <- merge(Montane_AMTI_F,AMTI_abs,by=c("ID","PA"))
+
+AMTI_data <- rbind(Montane_AMTI_T2,Montane_AMTI_F2)
+AMTI_data <- na.omit(AMTI_data)
+
+names(AMTI_data) <- c("ID", "PA", "elev", "Rough", "SA", "NDVI", "LC", "MAT", "MCMT", "lat", "lon")
+names(Sprasts_montane) <- c("elev","Rough","SA","NDVI","LC","MAT","MCMT")
+AMTI_data$PA <- as.numeric(AMTI_data$PA)
+
+## AMTI ----
+AMTI_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMTI_data)
+
+my.cluster <- parallel::makeCluster(
+  n.cores, 
+  type = "PSOCK"
+  )
+
+#register it to be used by %dopar%
+doParallel::registerDoParallel(cl = my.cluster)
+
+system.time({
+AMTI_montane_mod <- predict(Sprasts_montane, AMTI_rfm)
+})
+stopCluster(my.cluster)
+
+writeRaster(AMTI_montane_mod,paste0(here("Outputs","Predictions"),"/AMTI_montane_RFmod.tif"), overwrite=TRUE)
+
+```
+
+# Final maps
+
+```{r mapping, echo=FALSE, eval=FALSE}
+
+AMMA_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/AMMA_boreal_RFmod.tif"))
+AMMA_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/AMMA_montane_RFmod.tif"))
+
+AMMA_RFmod <- merge(AMMA_boreal_RFmod,AMMA_montane_RFmod)
+
+ANBO_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/ANBO_boreal_RFmod.tif"))
+ANBO_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/ANBO_montane_RFmod.tif"))
+ANBO_RFmod <- merge(ANBO_boreal_RFmod,ANBO_montane_RFmod)
+
+RALU_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RALU_boreal_RFmod.tif"))
+RALU_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RALU_montane_RFmod.tif"))
+RALU_RFmod <- merge(RALU_boreal_RFmod,RALU_montane_RFmod)
+
+RASY_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RASY_boreal_RFmod.tif"))
+RASY_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RASY_montane_RFmod.tif"))
+RASY_RFmod <- merge(RASY_boreal_RFmod,RASY_montane_RFmod)
+
+RASY_taiga_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RASY_taiga_RFmod.tif"))
+RASY_RFmod <- merge(RASY_taiga_RFmod,RASY_taiga_RFmod)
+
+AMTI_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/AMTI_montane_RFmod.tif"))
+
+#AMMA
+AMMA_map <- tm_shape(AMMA_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMTI SDM")+
 tm_layout(legend.outside = TRUE)
 
-nmx <- paste0("AMMA","_rfp1")
+#ANBO
+ANBO_map <- tm_shape(ANBO_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMTI SDM")+
+tm_layout(legend.outside = TRUE)
 
-writeRaster(modlist[[1]],paste0(here("Outputs","Rasters"),"/RF_As_rp1a.tif"), overwrite=TRUE)
+#RALU
+RALU_map <- tm_shape(RALU_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMTI SDM")+
+tm_layout(legend.outside = TRUE)
 
+#RASY
+RASY_map <- tm_shape(RASY_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMTI SDM")+
+tm_layout(legend.outside = TRUE)
+
+#AMTI
+AMTI_map <- tm_shape(AMTI_montane_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMTI SDM")+
+tm_layout(legend.outside = TRUE)
+
+
+
+# Extra Example:
 tm_shape(modlist[[1]]) +
   tm_raster(style= "kmeans", legend.show=FALSE) +
   tm_shape(Eco_metplot_vs[which(Eco_metplot_vs$metal == "Copper"),]) + 
