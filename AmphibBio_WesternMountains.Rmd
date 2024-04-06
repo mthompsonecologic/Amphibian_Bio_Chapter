@@ -41,7 +41,8 @@ list.of.packages <- c(
   "ranger",
   "tmap",
   "BiodiversityR",
-  "tidyverse"
+  "tidyverse",
+  "viridis"
 )
 
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
@@ -2624,47 +2625,171 @@ RASY_RFmod <- merge(RASY_RFmod1,RASY_taiga_RFmod)
 AMTI_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
                                  "/AMTI_montane_RFmod.tif"))
 
+Rough_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Rough_dem.tif"))
+
 #AMMA
 AMMA_map <- tm_shape(AMMA_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
             title = "AMMA SDM") +
-tm_layout(legend.outside = TRUE)
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2)
 
 #ANBO
 ANBO_map <- tm_shape(ANBO_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
             title = "ANBO SDM") +
-tm_layout(legend.outside = TRUE)
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2)
 
 #RALU
 RALU_map <- tm_shape(RALU_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
             title = "RALU SDM")+
-tm_layout(legend.outside = TRUE)
+tm_layout(legend.outside = TRUE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2)
 
 #RASY
 RASY_map <- tm_shape(RASY_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
             title = "RASY SDM")+
-tm_layout(legend.outside = TRUE)
+tm_layout(legend.outside = TRUE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
 
 #AMTI
 AMTI_map <- tm_shape(AMTI_montane_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn",
             title = "AMTI SDM")+
-tm_layout(legend.outside = TRUE)
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2)
+
+## Explanatory Raster Maps
+
+CDEM_Total <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_Total.tif"))
+
+SA_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/SA_dem.tif"))
+
+Boreal_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MAT.tif"))
+Montane_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MAT.tif"))
+Taiga_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MAT.tif"))
+
+MAT_Total <- merge(Boreal_MAT, Montane_MAT, Taiga_MAT)
+
+LandCov <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/LandCov.tif"))
+
+Boreal_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MCMT.tif"))
+
+Montane_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MCMT.tif"))
+
+Taiga_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MCMT.tif"))
 
 
+MCMT_Total <- merge(Boreal_MCMT, Montane_MCMT, Taiga_MCMT)
 
-# Extra Example:
-tm_shape(modlist[[1]]) +
-  tm_raster(style= "kmeans", legend.show=FALSE) +
-  tm_shape(Eco_metplot_vs[which(Eco_metplot_vs$metal == "Copper"),]) + 
-  tm_symbols(shape = 21, size = "value",
-             title.size = "Concentration (ppm)", col = "goldenrod4", border.col="black") +
-tm_scale_bar(position = c("left", "bottom"))+
-tm_layout(main.title = "Copper",
-            bg.color = "lightgrey", inner.margins = c(-0.5, -0.3, -0.2, -0.4)) +  tm_compass(position = c("right", "top"), size = 2)
+# CDEM
+CDEM_map <- tm_shape(CDEM_Total) +
+  tm_raster(style = "cont", palette = terrain.colors(20),
+            title = "CDEM Elevation (m)")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# Modis EVI
+EVI_map <- tm_shape(NDVI) +
+  tm_raster(style = "cont", palette = "YlGn",
+            title = "EVI: Modis 16-day")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# Roughness
+Rough_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Rough_dem.tif"))
+
+Roughness_map <- tm_shape(Rough_dem) +
+  tm_raster(style = "cont", palette = "BrBG") +
+tm_layout(legend.show=FALSE) +
+  tm_layout(title = "Roughness", title.position=c(0.60, .95)) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# MAT
+MAT_Map <- tm_shape(MAT_Total) +
+  tm_raster(style = "cont", palette = "-RdBu",
+            title = "Mean Annual Temperature")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# MCMT
+MCMT_Map <- tm_shape(MCMT_Total) +
+  tm_raster(style = "cont", palette = "-YlOrRd",
+            title = "Mean Annual Temperature")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+
 
 ```
 
