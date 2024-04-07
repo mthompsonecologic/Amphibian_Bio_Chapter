@@ -868,10 +868,10 @@ CDEM_Total <- rast(paste0(here::here("Inputs",
 climbc <- rast(paste0(here("InputFiles"),"/BC80k.asc"))
 climbcdf <- as.data.frame(climbc) 
 
-EcoZone <- project(EcoZone,
+EcoZone <- terra::project(EcoZone,
                    crs(climbc))
 
-CDEM_Total <- project(CDEM_Total,
+CDEM_Total <- terra::project(CDEM_Total,
                        crs(climbc),
                       threads=n.cores)
 
@@ -1040,7 +1040,7 @@ ANBOgt_pt_s <- sf::st_as_sf(ANBOgt_pt)
 
 df_near <- st_join(ANBOgt_pt_s, ANBO_pts_s, join = st_nearest_feature)
 ANBO_join <- vect(df_near)
-ANBO <- terra::project(ANBO,"EPSG:32610")
+#ANBO <- terra::project(ANBO,"EPSG:32610")
 ANBO <- crop(ANBO, EcoZone)
 
 
@@ -1080,7 +1080,7 @@ RALUgt_pt_s <- sf::st_as_sf(RALUgt_pt)
 
 df_near <- st_join(RALUgt_pt_s, RALU_pts_s, join = st_nearest_feature)
 RALU_join <- vect(df_near)
-RALU <- terra::project(RALU,"EPSG:32610")
+RALU <- terra::project(RALU,CRS('+proj=longlat +datum=WGS84'))
 RALU <- crop(RALU, EcoZone)
 
 #RASY
@@ -1119,7 +1119,7 @@ RASYgt_pt_s <- sf::st_as_sf(RASYgt_pt)
 
 df_near <- st_join(RASYgt_pt_s, RASY_pts_s, join = st_nearest_feature)
 RASY_join <- vect(df_near)
-RASY <- terra::project(RASY,"EPSG:32610")
+RASY <- terra::project(RASY,CRS('+proj=longlat +datum=WGS84'))
 RASY <- crop(RASY, EcoZone)
 
 # Buffer the points by 1 km
@@ -1853,7 +1853,7 @@ RASY_1km <- buffer(RASY,
 
 # Start AMMA - True Record
 AMMA_1km$ID <- paste0("T",AMMA_pres$ID)
-AMMA_1km_montane <- crop(AMMA_1km, Montane)
+AMMA_1km_montane <- crop(AMMA_1km, terra::project(Montane, crs(AMMA_1km)))
 
 # Extract the median values - True Records
 Montane_AMMA_T <- terra::extract(Sprasts_montane,
@@ -1896,6 +1896,8 @@ AMMA_data$PA <- as.numeric(AMMA_data$PA)
 ## AMMA ----
 AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMMA_data)
 
+result <- rfcv(AMMA_data[,c(3:9)],AMMA_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
 
 print(AMMA_rfm)
 floor(sqrt(ncol(AMMA_data) - 1))
@@ -1908,9 +1910,18 @@ print(AMMA_rfmtry)
 set.seed(71)
 AMMA_rfm2 <-randomForest(PA~.,data=AMMA_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
 print(AMMA_rfm2)
+
 #Evaluate variable importance
 randomForest::importance(AMMA_rfm2)
 varImpPlot(AMMA_rfm2)
+
+AMMA_rfm2 <-randomForest(PA~.,data=AMMA_data, mtry=best.m, importance=TRUE,ntree=500)
+
+# MAT, elev, Rough, SA - importance
+# rfcv dif between 7-5 low, so:
+# go with three :
+AMMA_rfm3 <-randomForest(PA~MAT+elev+Rough, data=AMMA_data)
+print(AMMA_rfm3)
 
 my.cluster <- parallel::makeCluster(
   n.cores, 
@@ -1921,16 +1932,16 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-AMMA_montane_mod <- predict(Sprasts_montane, AMMA_rfm)
+AMMA_montane_mod <- predict(Sprasts_montane, AMMA_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(AMMA_montane_mod,paste0(here("Outputs","Predictions"),"/AMMA_montane_RFmod.tif"), overwrite=TRUE)
+writeRaster(AMMA_montane_mod,paste0(here("Outputs","Predictions"),"/AMMA_montane_RFmod_red.tif"), overwrite=TRUE)
 
 ## AMMA - Boreal
 # Start AMMA - True Record
 AMMA_1km$ID <- paste0("T",AMMA_pres$ID)
-AMMA_1km_boreal <- crop(AMMA_1km, Boreal)
+AMMA_1km_boreal <- crop(AMMA_1km, terra::project(Boreal,crs(AMMA_1km)))
 
 # Extract the median values - True Records
 Boreal_AMMA_T <- terra::extract(Sprasts_boreal,
@@ -1972,6 +1983,9 @@ AMMA_data$PA <- as.numeric(AMMA_data$PA)
 ## AMMA ----
 AMMA_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMMA_data)
 
+result <- rfcv(AMMA_data[,c(3:9)],AMMA_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
 print(AMMA_rfm)
 floor(sqrt(ncol(AMMA_data) - 1))
 
@@ -1987,6 +2001,12 @@ print(AMMA_rfm2)
 randomForest::importance(AMMA_rfm2)
 varImpPlot(AMMA_rfm2)
 
+# Reduce to 4 variables:
+# elev, MAT, NDVI, LC
+AMMA_rfm3 <-randomForest(PA~elev + MAT + NDVI + LC, data=AMMA_data)
+print(AMMA_rfm3)
+
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -1996,11 +2016,11 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-AMMA_boreal_mod <- predict(Sprasts_boreal, AMMA_rfm)
+AMMA_boreal_mod <- predict(Sprasts_boreal, AMMA_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(AMMA_boreal_mod,paste0(here("Outputs","Predictions"),"/AMMA_boreal_RFmod.tif"), overwrite=TRUE)
+writeRaster(AMMA_boreal_mod,paste0(here("Outputs","Predictions"),"/AMMA_boreal_RFmod_red.tif"), overwrite=TRUE)
 
 ## ANBO
 # Start ANBO - True Record
@@ -2049,6 +2069,30 @@ ANBO_data$PA <- as.numeric(ANBO_data$PA)
 ## ANBO ----
 ANBO_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=ANBO_data)
 
+result <- rfcv(ANBO_data[,c(3:9)],ANBO_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(ANBO_rfm)
+floor(sqrt(ncol(ANBO_data) - 1))
+
+ANBO_rfmtry <- tuneRF(ANBO_data[-1],ANBO_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- ANBO_rfmtry[ANBO_rfmtry[, 2] == min(ANBO_rfmtry[, 2]), 1]
+print(ANBO_rfmtry)
+
+set.seed(71)
+ANBO_rfm2 <-randomForest(PA~.,data=ANBO_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(ANBO_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(ANBO_rfm2)
+varImpPlot(ANBO_rfm2)
+
+# Reduce to x variables:
+# SA, MAT, Rough, NDVI
+ANBO_rfm3 <-randomForest(PA~SA + MAT + Rough + NDVI, data=ANBO_data)
+print(ANBO_rfm3)
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2062,7 +2106,7 @@ ANBO_montane_mod <- predict(Sprasts_montane, ANBO_rfm)
 })
 stopCluster(my.cluster)
 
-writeRaster(ANBO_montane_mod,paste0(here("Outputs","Predictions"),"/ANBO_montane_RFmod.tif"), overwrite=TRUE)
+writeRaster(ANBO_montane_mod,paste0(here("Outputs","Predictions"),"/ANBO_montane_RFmod_red.tif"), overwrite=TRUE)
 
 ## ANBO - Boreal
 # Start ANBO - True Record
@@ -2111,6 +2155,28 @@ ANBO_data$PA <- as.numeric(ANBO_data$PA)
 ## ANBO ----
 ANBO_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=ANBO_data)
 
+result <- rfcv(ANBO_data[,c(3:9)],ANBO_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(ANBO_rfm)
+floor(sqrt(ncol(ANBO_data) - 1))
+
+ANBO_rfmtry <- tuneRF(ANBO_data[-1],ANBO_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- ANBO_rfmtry[ANBO_rfmtry[, 2] == min(ANBO_rfmtry[, 2]), 1]
+print(ANBO_rfmtry)
+
+set.seed(71)
+ANBO_rfm2 <-randomForest(PA~.,data=ANBO_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(ANBO_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(ANBO_rfm2)
+varImpPlot(ANBO_rfm2)
+
+# Reduce to x variables:
+# Retain all in this set
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2124,8 +2190,7 @@ ANBO_boreal_mod <- predict(Sprasts_boreal, ANBO_rfm)
 })
 stopCluster(my.cluster)
 
-writeRaster(ANBO_boreal_mod,paste0(here("Outputs","Predictions"),"/ANBO_boreal_RFmod.tif"), overwrite=TRUE)
-
+writeRaster(ANBO_boreal_mod,paste0(here("Outputs","Predictions"),"/ANBO_boreal_RFmod_red.tif"), overwrite=TRUE)
 
 ## RALU
 # Start RALU - True Record
@@ -2174,6 +2239,29 @@ RALU_data$PA <- as.numeric(RALU_data$PA)
 ## RALU ----
 RALU_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RALU_data)
 
+result <- rfcv(RALU_data[,c(3:9)],RALU_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(RALU_rfm)
+floor(sqrt(ncol(RALU_data) - 1))
+
+RALU_rfmtry <- tuneRF(RALU_data[-1],RALU_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- RALU_rfmtry[RALU_rfmtry[, 2] == min(RALU_rfmtry[, 2]), 1]
+print(RALU_rfmtry)
+
+set.seed(71)
+RALU_rfm2 <-randomForest(PA~.,data=RALU_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(RALU_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(RALU_rfm2)
+varImpPlot(RALU_rfm2)
+
+# Reduce to x variables:
+# All but elevation
+RALU_rfm3 <-randomForest(PA~MAT + NDVI + Rough + SA + LC + MCMT, data=RALU_data)
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2183,11 +2271,11 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-RALU_montane_mod <- predict(Sprasts_montane, RALU_rfm)
+RALU_montane_mod <- predict(Sprasts_montane, RALU_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(RALU_montane_mod,paste0(here("Outputs","Predictions"),"/RALU_montane_RFmod.tif"), overwrite=TRUE)
+writeRaster(RALU_montane_mod,paste0(here("Outputs","Predictions"),"/RALU_montane_RFmod_red.tif"), overwrite=TRUE)
 
 ## RALU - Boreal
 # Start RALU - True Record
@@ -2236,6 +2324,32 @@ RALU_data$PA <- as.numeric(RALU_data$PA)
 ## RALU ----
 RALU_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RALU_data)
 
+randomForest::importance(RALU_rfm)
+varImpPlot(RALU_rfm)
+result <- rfcv(RALU_data[,c(3:9)],RALU_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(RALU_rfm)
+floor(sqrt(ncol(RALU_data) - 1))
+
+RALU_rfmtry <- tuneRF(RALU_data[-1],RALU_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- RALU_rfmtry[RALU_rfmtry[, 2] == min(RALU_rfmtry[, 2]), 1]
+print(RALU_rfmtry)
+
+set.seed(71)
+RALU_rfm2 <-randomForest(PA~.,data=RALU_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(RALU_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(RALU_rfm2)
+varImpPlot(RALU_rfm2)
+
+# Reduce to x variables:
+# 
+RALU_rfm3 <-randomForest(PA~MCMT+elev+Rough+MAT+SA, data=RALU_data)
+print(RALU_rfm3)
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2245,11 +2359,11 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-RALU_boreal_mod <- predict(Sprasts_boreal, RALU_rfm)
+RALU_boreal_mod <- predict(Sprasts_boreal, RALU_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(RALU_boreal_mod,paste0(here("Outputs","Predictions"),"/RALU_boreal_RFmod.tif"), overwrite=TRUE)
+writeRaster(RALU_boreal_mod,paste0(here("Outputs","Predictions"),"/RALU_boreal_RFmod_red.tif"), overwrite=TRUE)
 
 ## RASY
 # Start RASY - True Record
@@ -2298,6 +2412,30 @@ RASY_data$PA <- as.numeric(RASY_data$PA)
 ## RASY ----
 RASY_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RASY_data)
 
+result <- rfcv(RASY_data[,c(3:9)],RASY_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(RASY_rfm)
+floor(sqrt(ncol(RASY_data) - 1))
+
+RASY_rfmtry <- tuneRF(RASY_data[-1],RASY_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- RASY_rfmtry[RASY_rfmtry[, 2] == min(RASY_rfmtry[, 2]), 1]
+print(RASY_rfmtry)
+
+set.seed(71)
+RASY_rfm2 <-randomForest(PA~.,data=RASY_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(RASY_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(RASY_rfm2)
+varImpPlot(RASY_rfm2)
+
+# Reduce to x variables:
+# All but Rough
+RASY_rfm3 <-randomForest(PA~LC+NDVI+MAT+SA+elev+MCMT, data=RASY_data)
+print(RASY_rfm3)
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2307,11 +2445,11 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-RASY_montane_mod <- predict(Sprasts_montane, RASY_rfm)
+RASY_montane_mod <- predict(Sprasts_montane, RASY_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(RASY_montane_mod,paste0(here("Outputs","Predictions"),"/RASY_montane_RFmod.tif"), overwrite=TRUE)
+writeRaster(RASY_montane_mod,paste0(here("Outputs","Predictions"),"/RASY_montane_RFmod_red.tif"), overwrite=TRUE)
 
 ## RASY - Boreal
 # Start RASY - True Record
@@ -2360,6 +2498,30 @@ RASY_data$PA <- as.numeric(RASY_data$PA)
 ## RASY ----
 RASY_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RASY_data)
 
+result <- rfcv(RASY_data[,c(3:9)],RASY_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(RASY_rfm)
+floor(sqrt(ncol(RASY_data) - 1))
+
+RASY_rfmtry <- tuneRF(RASY_data[-1],RASY_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- RASY_rfmtry[RASY_rfmtry[, 2] == min(RASY_rfmtry[, 2]), 1]
+print(RASY_rfmtry)
+
+set.seed(71)
+RASY_rfm2 <-randomForest(PA~.,data=RASY_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(RASY_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(RASY_rfm2)
+varImpPlot(RASY_rfm2)
+
+# Reduce to x variables:
+# All but SA or LC
+RASY_rfm3 <-randomForest(PA~elev+MCMT+MAT+Rough+NDVI+LC, data=RASY_data)
+print(RASY_rfm3)
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2369,11 +2531,11 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-RASY_boreal_mod <- predict(Sprasts_boreal, RASY_rfm)
+RASY_boreal_mod <- predict(Sprasts_boreal, RASY_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(RASY_boreal_mod,paste0(here("Outputs","Predictions"),"/RASY_boreal_RFmod.tif"), overwrite=TRUE)
+writeRaster(RASY_boreal_mod,paste0(here("Outputs","Predictions"),"/RASY_boreal_RFmod_red.tif"), overwrite=TRUE)
 
 ## RASY - Taiga
 # Start RASY - True Record
@@ -2422,6 +2584,30 @@ RASY_data$PA <- as.numeric(RASY_data$PA)
 ## RASY ----
 RASY_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=RASY_data)
 
+result <- rfcv(RASY_data[,c(3:9)],RASY_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
+print(RASY_rfm)
+floor(sqrt(ncol(RASY_data) - 1))
+
+RASY_rfmtry <- tuneRF(RASY_data[-1],RASY_data$PA, ntreeTry=500,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m <- RASY_rfmtry[RASY_rfmtry[, 2] == min(RASY_rfmtry[, 2]), 1]
+print(RASY_rfmtry)
+
+set.seed(71)
+RASY_rfm2 <-randomForest(PA~.,data=RASY_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
+print(RASY_rfm2)
+
+#Evaluate variable importance
+randomForest::importance(RASY_rfm2)
+varImpPlot(RASY_rfm2)
+
+# Reduce to x variables:
+# All but SA or LC
+RASY_rfm3 <-randomForest(PA~MCMT+elev, data=RASY_data)
+print(RASY_rfm3)
+
 my.cluster <- parallel::makeCluster(
   n.cores, 
   type = "PSOCK"
@@ -2431,16 +2617,16 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-RASY_taiga_mod <- predict(Sprasts_taiga, RASY_rfm)
+RASY_taiga_mod <- predict(Sprasts_taiga, RASY_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(RASY_taiga_mod,paste0(here("Outputs","Predictions"),"/RASY_taiga_RFmod.tif"), overwrite=TRUE)
+writeRaster(RASY_taiga_mod,paste0(here("Outputs","Predictions"),"/RASY_taiga_RFmod_red.tif"), overwrite=TRUE)
 
 ## AMTI - Montane
 # Start AMTI - True Record
 AMTI_1km$ID <- paste0("T",AMTI_pres$ID)
-AMTI_1km_montane <- crop(AMTI_1km, Montane)
+AMTI_1km_montane <- crop(AMTI_1km, terra::project(Montane,AMTI_1km))
 
 # Extract the median values - True Records
 Montane_AMTI_T <- terra::extract(Sprasts_montane,
@@ -2486,6 +2672,9 @@ dim(AMTI_data)
 ## AMTI ----
 AMTI_rfm <- randomForest(formula=PA ~ elev + Rough + SA + NDVI + LC + MAT + MCMT, data=AMTI_data)
 
+result <- rfcv(AMTI_data[,c(3:9)],AMTI_data$PA,scale="log",step=0.7)
+with(result, plot(n.var, error.cv, log="x", type="o", lwd=2))
+
 print(AMTI_rfm)
 floor(sqrt(ncol(AMTI_data) - 1))
 
@@ -2497,10 +2686,15 @@ print(AMTI_rfmtry)
 set.seed(71)
 AMTI_rfm2 <-randomForest(PA~.,data=AMTI_data[,c(2:9)], mtry=best.m, importance=TRUE,ntree=500)
 print(AMTI_rfm2)
+
 #Evaluate variable importance
 randomForest::importance(AMTI_rfm2)
 varImpPlot(AMTI_rfm2)
 
+# Reduce to x variables:
+# All but SA or LC
+AMTI_rfm3 <-randomForest(PA~MAT+elev+LC, data=AMTI_data)
+print(AMTI_rfm3)
 
 my.cluster <- parallel::makeCluster(
   n.cores, 
@@ -2511,15 +2705,15 @@ my.cluster <- parallel::makeCluster(
 doParallel::registerDoParallel(cl = my.cluster)
 
 system.time({
-AMTI_montane_mod <- predict(Sprasts_montane, AMTI_rfm)
+AMTI_montane_mod <- predict(Sprasts_montane, AMTI_rfm3)
 })
 stopCluster(my.cluster)
 
-writeRaster(AMTI_montane_mod,paste0(here("Outputs","Predictions"),"/AMTI_montane_RFmod.tif"), overwrite=TRUE)
+writeRaster(AMTI_montane_mod,paste0(here("Outputs","Predictions"),"/AMTI_montane_RFmod_red.tif"), overwrite=TRUE)
 
 ```
 
-# Final maps
+# Mapping the Full SDMs
 
 ```{r mapping, echo=FALSE, eval=FALSE}
 
@@ -2554,6 +2748,241 @@ RASY_RFmod <- merge(RASY_RFmod1,RASY_taiga_RFmod)
 
 AMTI_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
                                  "/AMTI_montane_RFmod.tif"))
+
+Rough_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Rough_dem.tif"))
+
+#AMMA
+AMMA_map <- tm_shape(AMMA_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMMA SDM") +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2)
+
+#ANBO
+ANBO_map <- tm_shape(ANBO_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "ANBO SDM") +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2)
+
+#RALU
+RALU_map <- tm_shape(RALU_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "RALU SDM")+
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2)
+
+#RASY
+RASY_map <- tm_shape(RASY_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "RASY SDM")+
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+#AMTI
+AMTI_map <- tm_shape(AMTI_montane_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn",
+            title = "AMTI SDM")+
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.50, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) 
+
+AMTI_montane_RFmod2 <- AMTI_montane_RFmod
+as.numeric(AMTI_montane_RFmod2)
+
+m <- c(0, 0.85, NA,  
+       0.85, 1, 1)
+rclmat <- matrix(m, ncol=3, byrow=TRUE)
+AMTI_montane_RFmod2 <- classify(AMTI_montane_RFmod2, rclmat, include.lowest=TRUE)
+       
+#AMTI >0.9 only
+AMTI_map2 <- tm_shape(AMTI_montane_RFmod2) +
+  tm_raster(style = "equal",
+            title = "AMTI SDM", palette="green4") +
+tm_layout(legend.show=FALSE) +
+  tm_layout(title = "AMTI (>0.95)", title.position=c(0.60, .95)) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) +  tm_shape(st_as_sf(AMTI)) + tm_symbols(shape = 20, size=0.1, col="red")
+
+
+
+## Explanatory Raster Maps
+
+CDEM_Total <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_Total.tif"))
+
+SA_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/SA_dem.tif"))
+
+Boreal_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MAT.tif"))
+Montane_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MAT.tif"))
+Taiga_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MAT.tif"))
+
+MAT_Total <- merge(Boreal_MAT, Montane_MAT, Taiga_MAT)
+
+LandCov <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/LandCov.tif"))
+
+Boreal_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MCMT.tif"))
+
+Montane_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MCMT.tif"))
+
+Taiga_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MCMT.tif"))
+
+
+MCMT_Total <- merge(Boreal_MCMT, Montane_MCMT, Taiga_MCMT)
+
+# CDEM
+CDEM_map <- tm_shape(CDEM_Total) +
+  tm_raster(style = "cont", palette = terrain.colors(20),
+            title = "CDEM Elevation (m)")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# Modis EVI
+EVI_map <- tm_shape(NDVI) +
+  tm_raster(style = "cont", palette = "YlGn",
+            title = "EVI: Modis 16-day")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# Roughness
+Rough_dem <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/Rough_dem.tif"))
+
+Roughness_map <- tm_shape(Rough_dem) +
+  tm_raster(style = "cont", palette = "BrBG") +
+tm_layout(legend.show=FALSE) +
+  tm_layout(title = "Roughness", title.position=c(0.60, .95)) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# MAT
+MAT_Map <- tm_shape(MAT_Total) +
+  tm_raster(style = "cont", palette = "-RdBu",
+            title = "Mean Annual Temperature")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# MCMT
+MCMT_Map <- tm_shape(MCMT_Total) +
+  tm_raster(style = "cont", palette = "-GnBu",
+            title = "Mean Coldest Month Temperature")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+# Slope aspect
+SA_Map <- tm_shape(SA_dem) +
+  tm_raster(style = "cont", palette = "-viridis",
+            title = "Slope * Aspect")+
+tm_layout(legend.outside = FALSE) +
+tm_layout(legend.position= c("right", "top")) +
+tm_compass(type="arrow", position=c(0.03, 0.80))+
+tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
+tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
+tm_borders(lwd=2)
+
+
+
+```
+
+
+
+# Mapping the Reduced SDMs
+
+```{r mapping, echo=FALSE, eval=FALSE}
+
+AMMA_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/AMMA_boreal_RFmod_red.tif"))
+AMMA_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/AMMA_montane_RFmod_red.tif"))
+
+AMMA_RFmod <- merge(AMMA_boreal_RFmod,AMMA_montane_RFmod)
+
+ANBO_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/ANBO_boreal_RFmod_red.tif"))
+ANBO_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/ANBO_montane_RFmod_red.tif"))
+ANBO_RFmod <- merge(ANBO_boreal_RFmod,ANBO_montane_RFmod)
+
+RALU_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RALU_boreal_RFmod_red.tif"))
+RALU_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RALU_montane_RFmod_red.tif"))
+RALU_RFmod <- merge(RALU_boreal_RFmod,RALU_montane_RFmod)
+
+RASY_boreal_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RASY_boreal_RFmod_red.tif"))
+RASY_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RASY_montane_RFmod_red.tif"))
+RASY_RFmod1 <- merge(RASY_boreal_RFmod,RASY_montane_RFmod)
+
+RASY_taiga_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/RASY_taiga_RFmod_red.tif"))
+RASY_RFmod <- merge(RASY_RFmod1,RASY_taiga_RFmod)
+
+AMTI_montane_RFmod <- rast(paste0(here("Outputs","Predictions"),
+                                 "/AMTI_montane_RFmod_red.tif"))
 
 Rough_dem <- rast(paste0(here("Inputs","Rasters",
                         "Explanatory"),"/Rough_dem.tif"))
