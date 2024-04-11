@@ -3177,6 +3177,21 @@ tm_borders(lwd=2) + tm_shape(st_as_sf(Boreal))+
 tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
 tm_borders(lwd=2)
 
+tmap_save(AMMA_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMMA_3.jpeg"), height = 8.27, width = 11.69, dpi=600)
+          
+tmap_save(ANBO_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_ANBO_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+          
+tmap_save(RALU_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_RALU_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+          
+tmap_save(RASY_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_RASY_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+          
+tmap_save(AMTI_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMTI_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+
+tmap_save(EVI_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_EVI_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+
+tmap_save(MAT_Map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_MAT_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+
+tmap_save(Roughness_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_Rough_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
 
 
 ```
