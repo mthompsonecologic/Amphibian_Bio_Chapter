@@ -1087,6 +1087,7 @@ RALU <- crop(RALU, EcoZone)
 #RASY
 RASY <- vect(paste0(here("Inputs","AmphibianLocations"),"/RASY_Total.shp"))
 RASY <- terra::project(RASY,"EPSG:4326")
+#RASY <- terra::project(RASY,"EPSG:32610")
 
 # BiodiversityR approach to spatially thin the records
 RASYg <- data.frame(crds(RASY))
@@ -1122,7 +1123,7 @@ RASYgt_pt_s <- sf::st_as_sf(RASYgt_pt)
 
 df_near <- st_join(RASYgt_pt_s, RASY_pts_s, join = st_nearest_feature)
 RASY_join <- vect(df_near)
-RASY <- terra::project(RASY,CRS('+proj=longlat +datum=WGS84'))
+#RASY <- terra::project(RASY,CRS('+proj=longlat +datum=WGS84'))
 RASY <- crop(RASY, EcoZone)
 
 # Buffer the points by 1 km
