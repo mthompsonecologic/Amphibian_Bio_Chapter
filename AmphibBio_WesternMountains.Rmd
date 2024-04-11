@@ -996,7 +996,7 @@ AMMAgt_pt_s <- sf::st_as_sf(AMMAgt_pt)
 df_near <- st_join(AMMAgt_pt_s, AMMA_pts_s, join = st_nearest_feature)
 AMMA_join <- vect(df_near)
 AMMA <- terra::project(AMMA_join,"EPSG:32610")
-AMMA <- crop(AMMA, EcoZone)
+AMMA <- crop(AMMA, terra::project(EcoZone,"EPSG:32610"))
 
 # Tigrinum does not need to be thinned
 AMTI <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMTI_Total.shp"))
@@ -1046,6 +1046,8 @@ ANBO <- crop(ANBO, EcoZone)
 
 #RALU
 RALU <- vect(paste0(here("Inputs","AmphibianLocations"),"/RALU_Total.shp"))
+RALU <- terra::project(RALU,"EPSG:4326")
+
 # BiodiversityR approach to spatially thin the records
 RALUg <- data.frame(crds(RALU))
 RALUgdf <- SpatialPointsDataFrame(coords = RALUg[,c(1,2)], data = RALUg,
@@ -1077,7 +1079,6 @@ RALUgt_mat <- as.matrix(RALUgt)
 RALUgt_pt <- vect(RALUgt_mat, crs = crspoints)
 RALUgt_pt_s <- sf::st_as_sf(RALUgt_pt)
 
-
 df_near <- st_join(RALUgt_pt_s, RALU_pts_s, join = st_nearest_feature)
 RALU_join <- vect(df_near)
 RALU <- terra::project(RALU,CRS('+proj=longlat +datum=WGS84'))
@@ -1085,6 +1086,8 @@ RALU <- crop(RALU, EcoZone)
 
 #RASY
 RASY <- vect(paste0(here("Inputs","AmphibianLocations"),"/RASY_Total.shp"))
+RASY <- terra::project(RASY,"EPSG:4326")
+
 # BiodiversityR approach to spatially thin the records
 RASYg <- data.frame(crds(RASY))
 RASYgdf <- SpatialPointsDataFrame(coords = RASYg[,c(1,2)], data = RASYg,
@@ -3059,51 +3062,20 @@ tm_borders(lwd=2) +  tm_shape(st_as_sf(AMTI)) + tm_symbols(shape = 20, size=0.1,
 
 ## Explanatory Raster Maps
 
-CDEM_Total <- rast(paste0(here("Inputs","Rasters",
-                        "Explanatory"),"/CDEM_Total.tif"))
-
 SA_dem <- rast(paste0(here("Inputs","Rasters",
                         "Explanatory"),"/SA_dem.tif"))
 
-Boreal_MAT <- rast(paste0(here::here("Inputs",
-                                  "Rasters",
-                                  "Explanatory"),
-                                     "/Boreal_MAT.tif"))
-Montane_MAT <- rast(paste0(here::here("Inputs",
-                                  "Rasters",
-                                  "Explanatory"),
-                                     "/Montane_MAT.tif"))
-Taiga_MAT <- rast(paste0(here::here("Inputs",
-                                  "Rasters",
-                                  "Explanatory"),
-                                     "/Taiga_MAT.tif"))
-
-MAT_Total <- merge(Boreal_MAT, Montane_MAT, Taiga_MAT)
 
 LandCov <- rast(paste0(here::here("Inputs",
                                   "Rasters",
                                   "Explanatory"),
                                      "/LandCov.tif"))
 
-Boreal_MCMT <- rast(paste0(here::here("Inputs",
-                                  "Rasters",
-                                  "Explanatory"),
-                                     "/Boreal_MCMT.tif"))
-
-Montane_MCMT <- rast(paste0(here::here("Inputs",
-                                  "Rasters",
-                                  "Explanatory"),
-                                     "/Montane_MCMT.tif"))
-
-Taiga_MCMT <- rast(paste0(here::here("Inputs",
-                                  "Rasters",
-                                  "Explanatory"),
-                                     "/Taiga_MCMT.tif"))
-
-
-MCMT_Total <- merge(Boreal_MCMT, Montane_MCMT, Taiga_MCMT)
 
 # CDEM
+CDEM_Total <- rast(paste0(here("Inputs","Rasters",
+                        "Explanatory"),"/CDEM_Total.tif"))
+
 CDEM_map <- tm_shape(CDEM_Total) +
   tm_raster(style = "cont", palette = terrain.colors(20),
             title = "CDEM Elevation (m)")+
@@ -3116,6 +3088,12 @@ tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
 tm_borders(lwd=2)
 
 # Modis EVI
+NDVI <- rast(paste0(here("Inputs",
+                        "Rasters",
+                        "Explanatory"),
+                   "/NDVI.tif"))
+
+
 EVI_map <- tm_shape(NDVI) +
   tm_raster(style = "cont", palette = "YlGn",
             title = "EVI: Modis 16-day")+
@@ -3142,6 +3120,22 @@ tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
 tm_borders(lwd=2)
 
 # MAT
+
+Boreal_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MAT.tif"))
+Montane_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MAT.tif"))
+Taiga_MAT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MAT.tif"))
+
+MAT_Total <- merge(Boreal_MAT, Montane_MAT, Taiga_MAT)
+
 MAT_Map <- tm_shape(MAT_Total) +
   tm_raster(style = "cont", palette = "-RdBu",
             title = "Mean Annual Temperature")+
@@ -3154,6 +3148,24 @@ tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
 tm_borders(lwd=2)
 
 # MCMT
+Boreal_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Boreal_MCMT.tif"))
+
+Montane_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Montane_MCMT.tif"))
+
+Taiga_MCMT <- rast(paste0(here::here("Inputs",
+                                  "Rasters",
+                                  "Explanatory"),
+                                     "/Taiga_MCMT.tif"))
+
+
+MCMT_Total <- merge(Boreal_MCMT, Montane_MCMT, Taiga_MCMT)
+
 MCMT_Map <- tm_shape(MCMT_Total) +
   tm_raster(style = "cont", palette = "-GnBu",
             title = "Mean Coldest Month Temperature")+
@@ -3166,6 +3178,7 @@ tm_borders(lwd=2) + tm_shape(st_as_sf(Taiga))+
 tm_borders(lwd=2)
 
 # Slope aspect
+
 SA_Map <- tm_shape(SA_dem) +
   tm_raster(style = "cont", palette = "-viridis",
             title = "Slope * Aspect")+
@@ -3192,6 +3205,150 @@ tmap_save(EVI_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Fig
 tmap_save(MAT_Map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_MAT_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
 
 tmap_save(Roughness_map, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_Rough_3.jpeg"),height = 8.27, width = 11.69, dpi=600)
+
+
+# Mapping with points
+
+# All pts:
+
+AMMA <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMMA_Total.shp"))
+AMMA <- terra::project(AMMA,crs(AMMA_RFmod))
+AMTI <- vect(paste0(here("Inputs","AmphibianLocations"),"/AMTI_Total.shp"))
+AMTI <- terra::project(AMTI,crs(AMTI_montane_RFmod))
+ANBO <- vect(paste0(here("Inputs","AmphibianLocations"),"/ANBO_Total.shp"))
+ANBO <- terra::project(ANBO,crs(ANBO_RFmod))
+RALU <- vect(paste0(here("Inputs","AmphibianLocations"),"/RALU_Total.shp"))
+RALU <- terra::project(RALU,crs(RALU_RFmod))
+RASY <- vect(paste0(here("Inputs","AmphibianLocations"),"/RASY_Total.shp"))
+RASY <- terra::project(RASY,crs(RASY_RFmod))
+
+# Thinned - AMTI not done, too few
+
+AMMA_thin_pts <- vect(AMMAgt_pt_s)
+crs(AMMA_thin_pts) <- "epsg:4326"
+AMMA_thin_pts <- terra::project(AMMA_thin_pts,crs(AMMA_RFmod))
+
+ANBO_thin_pts <- vect(ANBOgt_pt_s)
+crs(ANBO_thin_pts) <- "epsg:4326"
+ANBO_thin_pts <- terra::project(ANBO_thin_pts,crs(ANBO_RFmod))
+
+RALU_thin_pts <- vect(RALUgt_pt_s)
+crs(RALU_thin_pts) <- "epsg:4326"
+RALU_thin_pts <- terra::project(RALU_thin_pts,crs(RALU_RFmod))
+
+RASY_thin_pts <- vect(RASYgt_pt_s)
+crs(RASY_thin_pts) <- "epsg:4326"
+RASY_thin_pts <- terra::project(RASY_thin_pts,crs(RASY_RFmod))
+
+EcoZone <- terra::project(EcoZone, crs(AMMA_RFmod))
+
+Boreal <- EcoZone[1] # Boreal
+Montane <- EcoZone[2] # Montane
+Taiga <- EcoZone[3] # Taiga
+
+Boreal_Montane <- terra::union(Boreal,Montane)
+
+# MaxEnt
+AMMA_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),
+                         "/Ambystoma_macrodactylum_climate.asc"))
+crs(AMMA_clim) <- "ESRI:102008"
+AMMA_clim <- terra::project(AMMA_clim, crs(AMMA_RFmod))
+AMMA_clim <- terra::mask(AMMA_clim,Boreal_Montane)
+AMMA_clim <- terra::crop(AMMA_clim,Boreal_Montane)
+
+ANBO_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),
+                         "/Anaxyrus_boreas_climate.asc"))
+crs(ANBO_clim) <- "ESRI:102008"
+ANBO_clim <- terra::project(ANBO_clim, crs(ANBO_RFmod))
+ANBO_clim <- terra::mask(ANBO_clim,Boreal_Montane)
+ANBO_clim <- terra::crop(ANBO_clim,Boreal_Montane)
+
+RASY_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),
+                         "/Rana_sylvatica_climate.asc"))
+crs(RASY_clim) <- "ESRI:102008"
+RASY_clim <- terra::project(RASY_clim, crs(RASY_RFmod))
+RASY_clim <- terra::mask(RASY_clim,EcoZone)
+RASY_clim <- terra::crop(RASY_clim,EcoZone)
+
+RALU_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),
+                         "/Rana_luteiventris_climate.asc"))
+crs(RALU_clim) <- "ESRI:102008"
+RALU_clim <- terra::project(RALU_clim, crs(RALU_RFmod))
+RALU_clim <- terra::mask(RALU_clim,Boreal_Montane)
+RALU_clim <- terra::crop(RALU_clim,Boreal_Montane)
+
+## Mapping it together
+
+AMMA_map2 <- tm_shape(AMMA_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, title="RF") +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+
+AMMA_clim_map <- tm_shape(AMMA_clim) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, title="MaxEnt") +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+
+AMMA_point_map <-  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2) +
+  tm_shape(st_as_sf(AMMA_thin_pts)) +
+  tm_symbols(size = 0.1, shape=21) +
+  tm_layout(legend.show= FALSE, title="Points") 
+
+current.mode <- tmap_mode("plot")
+tmap_arrange(AMMA_map2, AMMA_point_map, AMMA_clim_map)
+tmap_mode(current.mode)
+
+
+# ANBO
+
+ANBO_map2 <- tm_shape(ANBO_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, title="RF") +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+
+ANBO_clim_map <- tm_shape(ANBO_clim) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, title="MaxEnt") +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+
+ANBO_point_map <-  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2) +
+  tm_shape(st_as_sf(ANBO_thin_pts)) +
+  tm_symbols(size = 0.1, shape=21) +
+  tm_layout(legend.show= FALSE, title="Points") 
+
+current.mode <- tmap_mode("plot")
+tmap_arrange(ANBO_map2, ANBO_point_map, ANBO_clim_map)
+tmap_mode(current.mode)
+
+# RASY
+
+RASY_map2 <- tm_shape(RASY_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, title="RF") +
+  tm_shape(st_as_sf(EcoZone)) +
+  tm_borders(lwd=2)
+
+RASY_clim_map <- tm_shape(RASY_clim) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, title="MaxEnt") +
+  tm_shape(st_as_sf(EcoZone)) +
+  tm_borders(lwd=2)
+
+RASY_point_map <-  tm_shape(st_as_sf(EcoZone)) +
+  tm_borders(lwd=2) +
+  tm_shape(st_as_sf(RASY_thin_pts)) +
+  tm_symbols(size = 0.1, shape=21) +
+  tm_layout(legend.show= FALSE, title="Points") 
+
+current.mode <- tmap_mode("plot")
+tmap_arrange(RASY_map2, RASY_point_map, RASY_clim_map)
+tmap_mode(current.mode)
 
 
 ```
