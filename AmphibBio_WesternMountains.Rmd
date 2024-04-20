@@ -3464,6 +3464,46 @@ Full_maps <-  tmap_arrange(AMMA_map2, AMMA_point_map, AMMA_clim_map, ANBO_map2, 
 
 tmap_save(Full_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_MaxEnt_comp.jpeg"),height = 8.27, width = 11.69, dpi=300)
 
+RF_SDM_maps <-  tmap_arrange(AMMA_map, AMTI_map, ANBO_map, RASY_map, RALU_map, ncol=3, nrow=2)
+
+#Lee-Yaw and Irwin (2015) MaxEnt
+
+AMMA_clim_LY1 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Lee_Yaw_allo"),
+                         "/prediction1.tif"))
+AMMA_clim_LY2 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Lee_Yaw_allo"),
+                         "/prediction2.tif"))
+AMMA_clim_LY3 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Lee_Yaw_allo"),
+                         "/prediction3.tif"))
+AMMA_clim_LY4 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Lee_Yaw_allo"),
+                         "/prediction4.tif"))
+AMMA_clim_LY5 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Lee_Yaw_allo"),
+                         "/QGIS_prediction5.tif"))
+
+AMMA_clim_LY5 <- terra::project(AMMA_clim_LY5, crs(AMMA_RFmod))
+AMMA_clim_LY5 <- terra::mask(AMMA_clim_LY5,Boreal_Montane)
+AMMA_clim_LY5 <- terra::crop(AMMA_clim_LY5,Boreal_Montane)
+
+AMMA_clim_LY5_map <- tm_shape(AMMA_clim_LY5) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, main.title="Lee-Yaw and Irwin 2015, North Central Group", main.title.size=0.6) +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+
+AMMA_map2 <- tm_shape(AMMA_RFmod) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, main.title="Random Forest - This Chapter", main.title.size=0.6) +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+
+AMMA_clim_map <- tm_shape(AMMA_clim) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, main.title="Seaborn et al., 2021",  main.title.size=0.6) +
+  tm_shape(st_as_sf(Boreal_Montane)) +
+  tm_borders(lwd=2)
+AMMA_Pred_maps <-  tmap_arrange(AMMA_clim_LY5_map, AMMA_map2, AMMA_clim_map, ncol = 3)
+
+tmap_save(Full_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMMA_MaxEnt_comp.jpeg"),height = 8.27, width = 11.69, dpi=300)
+
 ```
 
 
