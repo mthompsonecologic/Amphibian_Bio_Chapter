@@ -3489,18 +3489,18 @@ AMMA_clim_LY5_map <- tm_shape(AMMA_clim_LY5) +
   tm_shape(st_as_sf(Boreal_Montane)) +
   tm_borders(lwd=2)
 
-AMMA_map2 <- tm_shape(AMMA_RFmod) +
+AMMA_map3 <- tm_shape(AMMA_RFmod) +
   tm_raster(style = "cont", palette = "RdYlGn") +
   tm_layout(legend.show= FALSE, main.title="Random Forest - This Chapter", main.title.size=0.6) +
   tm_shape(st_as_sf(Boreal_Montane)) +
   tm_borders(lwd=2)
 
-AMMA_clim_map <- tm_shape(AMMA_clim) +
+AMMA_clim_map2 <- tm_shape(AMMA_clim) +
   tm_raster(style = "cont", palette = "RdYlGn") +
   tm_layout(legend.show= FALSE, main.title="Seaborn et al., 2021",  main.title.size=0.6) +
   tm_shape(st_as_sf(Boreal_Montane)) +
   tm_borders(lwd=2)
-AMMA_Pred_maps <-  tmap_arrange(AMMA_clim_LY5_map, AMMA_map2, AMMA_clim_map, ncol = 3)
+AMMA_Pred_maps <-  tmap_arrange(AMMA_clim_LY5_map, AMMA_map3, AMMA_clim_map2, ncol = 3)
 
 tmap_save(Full_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMMA_MaxEnt_comp.jpeg"),height = 8.27, width = 11.69, dpi=300)
 
