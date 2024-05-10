@@ -3504,6 +3504,52 @@ AMMA_Pred_maps <-  tmap_arrange(AMMA_clim_LY5_map, AMMA_map3, AMMA_clim_map2, nc
 
 tmap_save(Full_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMMA_MaxEnt_comp.jpeg"),height = 8.27, width = 11.69, dpi=300)
 
+#Plethodon
+
+PLVE_clim_LY1 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Pletho"),
+                         "/P_idahoensis_raster.tif"))
+PLVE_clim_50 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Pletho"),
+                         "/P_idahoensis_miroc5_8550.tif"))
+PLVE_clim_70 <- rast(paste0(here("Inputs","Rasters","MaxEnt","Pletho"),
+                         "/P_idahoensis_miroc5_8570.tif"))
+
+PLVE_clim_LY1 <- terra::project(PLVE_clim_LY1, crs(AMMA_RFmod))
+PLVE_clim_LY1 <- terra::mask(PLVE_clim_LY1,Boreal_Montane)
+PLVE_clim_LY1 <- terra::crop(PLVE_clim_LY1,Boreal_Montane)
+
+PLVE_clim_50 <- terra::project(PLVE_clim_50, crs(AMMA_RFmod))
+PLVE_clim_50 <- terra::mask(PLVE_clim_50,Boreal_Montane)
+PLVE_clim_50 <- terra::crop(PLVE_clim_50,Boreal_Montane)
+
+PLVE_clim_70 <- terra::project(PLVE_clim_70, crs(AMMA_RFmod))
+PLVE_clim_70 <- terra::mask(PLVE_clim_70,Boreal_Montane)
+PLVE_clim_70 <- terra::crop(PLVE_clim_70,Boreal_Montane)
+
+PLVE_clim_map <- tm_shape(PLVE_clim_LY1) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, main.title="PLID Current",  main.title.size=1.5) +
+  tm_shape(st_as_sf(Montane)) +
+  tm_borders(lwd=2)
+
+PLVE_clim_map50 <- tm_shape(PLVE_clim_50) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, main.title="PLID 2050",  main.title.size=1.5) +
+  tm_shape(st_as_sf(Montane)) +
+  tm_borders(lwd=2)
+
+PLVE_clim_map70 <- tm_shape(PLVE_clim_70) +
+  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_layout(legend.show= FALSE, main.title="PLID 2070",  main.title.size=1.5) +
+  tm_shape(st_as_sf(Montane)) +
+  tm_borders(lwd=2)
+
+PLVE_clim_maps <-  tmap_arrange(PLVE_clim_map, PLVE_clim_map50, PLVE_clim_map70, ncol = 3)
+
+
+# AMontanusRF
+
+AMont_SR <- rast(paste0(here("Inputs","Rasters","AMontanusRF"),"/w001001x.adf") )
+
 ```
 
 
