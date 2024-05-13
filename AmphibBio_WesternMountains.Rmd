@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Libraries
 
+These are the packages and their libraries.
 
 ```{r Libraries}
 
@@ -167,6 +168,19 @@ df <- data.frame(
   lon = as.numeric(coords["lon", ]),
   elevation = as.numeric(elevation)
 )
+
+```
+# Nak'azdli Whut'en Territory
+
+Loading a shapefile of Nak'azdli Whut'en territory to calculate statistics for this part of the study area.
+
+```{r Nakazdli, echo=FALSE, eval=FALSE}
+
+
+Nakazli <- vect(paste0(here("Inputs","Shapefiles"), "/Nakazli_Clip_LA.shp"))
+
+Nakazli <- terra::project(Nakazli,
+                          "EPSG:32610")
 
 ```
 
@@ -614,6 +628,8 @@ writeVector(EcoZonea,
                    "/EcoZoneagg.shp"),
             overwrite=TRUE)
 
+EcoZonea <- vect( paste0(here("Inputs","Shapefiles"),
+                   "/EcoZoneagg.shp"))
 EcoZonea <- project(EcoZonea, "epsg:4326")
 EcoZonea_ext <- as.numeric(as.matrix(ext(EcoZonea)))
 
@@ -622,6 +638,8 @@ writeVector(EcoZone1,
             paste0(here("Inputs","Shapefiles"),
                    "/EcoZone1.shp"),
             overwrite=TRUE)
+
+
 
 stac_source <- rstac::stac(
   "https://planetarycomputer.microsoft.com/api/stac/v1"
