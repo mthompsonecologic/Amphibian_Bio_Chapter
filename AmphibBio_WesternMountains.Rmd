@@ -39,9 +39,10 @@ list.of.packages <- c(
   "dismo",
   "randomForest",
   "SSDM",
-  "ranger",
-  "tmap",
-  "BiodiversityR",
+  #"ranger",
+  #"tmap", # retiring
+  "remotes",
+  #"BiodiversityR",
   "tidyverse",
   "viridis",
   "tmaptools",
@@ -56,11 +57,11 @@ if(length(new.packages) > 0){
 
 #loading packages
 for(package.i in list.of.packages){
-  suppressPackageStartupMessages(
+  #suppressPackageStartupMessages(
     library(
       package.i, 
       character.only = TRUE
-    )
+    #)
   )
 }
 
@@ -73,6 +74,10 @@ install.packages(paste0(here("Inputs","ClimateNA"),"/ClimateNAr_1.2.0.zip"),
                  repos = NULL,
                  type = "win.binary")
 library(ClimateNAr)
+
+remotes::install_github('r-tmap/tmap')
+
+
 n.cores <- future::availableCores() - 1
 
 ```
@@ -177,10 +182,52 @@ Loading a shapefile of Nak'azdli Whut'en territory to calculate statistics for t
 ```{r Nakazdli, echo=FALSE, eval=FALSE}
 
 
-Nakazli <- vect(paste0(here("Inputs","Shapefiles"), "/Nakazli_Clip_LA.shp"))
+Nakazdli <- vect(paste0(here("Inputs","Shapefiles"), "/Nakazdli_Territory.shp"))
 
-Nakazli <- terra::project(Nakazli,
-                          "EPSG:32610")
+Nakazdli <- terra::project(Nakazdli,
+                          "EPSG:4326")
+
+ECOSEC <- vect(paste0(here("Inputs","Shapefiles","ERC_ECOSECTIONS_SP"), "/ERC_ECOSEC_polygon.shp"))
+
+ECOSEC_NEL <- ECOSEC[3]
+
+ECOSEC_NEL  <- terra::project(ECOSEC_NEL,
+                          "EPSG:4326")
+
+ECOSEC_NEL_c <- crop(ECOSEC_NEL, Nakazdli)
+
+ECOSEC_NEL_c_sf <- sf::st_as_sf(ECOSEC_NEL_c)
+
+ECOSEC_NEL_ext <- as.numeric(as.matrix(ext(ECOSEC_NEL_c_sf)))
+
+stac_source <- rstac::stac(
+  "https://planetarycomputer.microsoft.com/api/stac/v1"
+)
+
+rstac::stac_search(
+  q = stac_source,
+  collections = "io-lulc-annual-v02",
+  bbox = c(ECOSEC_NEL_ext[1],
+           ECOSEC_NEL_ext[2],
+           ECOSEC_NEL_ext[3],
+           ECOSEC_NEL_ext[4]),
+  limit = 999
+) |> 
+  rstac::get_request()
+
+S2LC9V2 <- get_stac_data(
+  aoi = ECOSEC_NEL_c_sf,
+  start_date = "2020-01-01",
+  end_date = "2023-12-31",
+  asset_names='data',
+  stac_source="https://planetarycomputer.microsoft.com/api/stac/v1",
+  collection = "io-lulc-annual-v02",
+  output_filename = paste0(here::here("Outputs","Rasters"),"/S2LC9V2_20.tif")
+)
+
+
+S2LC9V2 <- dir(paste0(here::here("Outputs","Rasters")), full.names=TRUE)
+S2LC9V2 <- rast(S2LC9V2[3])
 
 ```
 
