@@ -189,15 +189,13 @@ Nakazdli <- terra::project(Nakazdli,
 
 ECOSEC <- vect(paste0(here("Inputs","Shapefiles","ERC_ECOSECTIONS_SP"), "/ERC_ECOSEC_polygon.shp"))
 
-ECOSEC_NEL <- ECOSEC[3]
+# Select the Nechako Lowland Ecosection:
 
+ECOSEC_NEL <- ECOSEC[3]
 ECOSEC_NEL  <- terra::project(ECOSEC_NEL,
                           "EPSG:4326")
-
 ECOSEC_NEL_c <- crop(ECOSEC_NEL, Nakazdli)
-
 ECOSEC_NEL_c_sf <- sf::st_as_sf(ECOSEC_NEL_c)
-
 ECOSEC_NEL_ext <- as.numeric(as.matrix(ext(ECOSEC_NEL_c_sf)))
 
 stac_source <- rstac::stac(
@@ -217,17 +215,88 @@ rstac::stac_search(
 
 S2LC9V2 <- get_stac_data(
   aoi = ECOSEC_NEL_c_sf,
-  start_date = "2020-01-01",
+  start_date = "2017-01-01",
   end_date = "2023-12-31",
   asset_names='data',
   stac_source="https://planetarycomputer.microsoft.com/api/stac/v1",
   collection = "io-lulc-annual-v02",
-  output_filename = paste0(here::here("Outputs","Rasters"),"/S2LC9V2_20.tif")
+  composite_function = NULL,
+  output_filename = paste0(here::here("Outputs","Rasters"),"/S2LC9V2_x.tif")
 )
 
 
-S2LC9V2 <- dir(paste0(here::here("Outputs","Rasters")), full.names=TRUE)
-S2LC9V2 <- rast(S2LC9V2[3])
+S2LC9V2 <- dir(paste0(here::here("Outputs","Rasters")),
+               full.names=TRUE,
+               pattern="*\\d.tif")
+
+S2LC9V2 <- lapply(S2LC9V2, rast)
+
+S2LC9V2_f = lapply(S2LC9V2,as.factor)
+
+S2LC9V2_sds <- terra::sds(S2LC9V2_f)
+
+citlist <- vector(mode='list',length=length(S2LC9V2_sds))
+for(i in 1:length(S2LC9V2_sds)) {
+        citlist[[i]] <- crop(S2LC9V2_sds[i], ECOSEC_NEL, mask=TRUE)
+    }
+
+S2LC9V2_sds <- terra::sds(citlist)
+
+citlist <- vector(mode='list',length=length(S2LC9V2_sds))
+for(i in 1:length(S2LC9V2_sds)) {
+        citlist[[i]] <- crop(S2LC9V2_sds[i], Nakazdli, mask=TRUE)
+    }
+
+S2LC9V2_sds <- terra::sds(citlist)
+
+#0 No Data #1 Water #2 Trees #4 Flooded vegetation
+#5 Crops #7 Built area #8 Bare ground #9 Snow/ice
+#10 Clouds #11 Rangeland
+
+
+S2LC9V2_17f <- freq(S2LC9V2_sds[1])
+S2LC9V2_18f <- freq(S2LC9V2_sds[2])
+S2LC9V2_19f <- freq(S2LC9V2_sds[3])
+S2LC9V2_20f <- freq(S2LC9V2_sds[4])
+S2LC9V2_21f <- freq(S2LC9V2_sds[5])
+S2LC9V2_22f <- freq(S2LC9V2_sds[6])
+S2LC9V2_23f <- freq(S2LC9V2_sds[7])
+
+Distp <- list()
+
+#Trees lost
+
+Distp[1] <- S2LC9V2_17f[11,3]
+Distp[2] <- S2LC9V2_18f[11,3]
+Distp[3] <- S2LC9V2_19f[11,3]
+Distp[4] <- S2LC9V2_20f[11,3]
+Distp[5] <- S2LC9V2_21f[11,3]
+Distp[6] <- S2LC9V2_22f[11,3]
+Distp[7] <- S2LC9V2_23f[11,3]
+
+Distp <- as.data.frame(unlist(Distp))
+Distp$year <- c(2017:2023) 
+
+## Landsat class
+# https://zenodo.org/records/8239305
+
+GLC_FCS30D <- c(paste0(here("Inputs","Rasters","Nak'azdli"), "/GLC_FCS30D_20002022_W125N60_Annual.tif"),paste0(here("Inputs","Rasters","Nak'azdli"), "/GLC_FCS30D_20002022_W130N60_Annual.tif"),paste0(here("Inputs","Rasters","Nak'azdli"), "/GLC_FCS30D_20002022_W130N55_Annual.tif"),paste0(here("Inputs","Rasters","Nak'azdli"), "/GLC_FCS30D_20002022_W125N55_Annual.tif"))
+
+GLC_FCS30Dr <- vrt(GLC_FCS30D)
+
+
+citlist <- vector(mode='list',length=length(S2LC9V2_sds))
+for(i in 1:length(names(GLC_FCS30Dr))){
+        citlist[[i]] <- crop(GLC_FCS30Dr[[i]], Nakazdli, mask=TRUE)
+    }
+
+GLC_FCS30D_sds <- terra::sds(citlist)
+
+
+
+GLC_FCS30Dm <- merge(GLC_FCS30Dr)
+GLC_FCS30Dc <- crop(GLC_FCS30Dm,Nakazdli,mask=TRUE)
+
 
 ```
 
