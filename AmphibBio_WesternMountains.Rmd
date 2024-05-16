@@ -398,53 +398,92 @@ for(i in 1:length(GLC_FCS30D_sds_fc)){
 class_stat <- as.data.frame(data.table::rbindlist(class_stat))
 
 ctypes <- as.data.frame(cbind(value=as.numeric(c(1:8)),
-                              ctype=c("CRP","FST","SHR","WET","IMP","BaA","Wat","PIS")))
+                              ctype=c("CRP",
+                                      "FST",
+                                      "SHR",
+                                      "WET",
+                                      "IMP",
+                                      "BaA",
+                                      "Wat",
+                                      "PIS")))
 
-class_stat <- merge(class_stat,ctypes, by  = "value")
+classnames <- as.data.frame(cbind(ctype=c("CRP",
+                            "FST",
+                            "SHR",
+                            "WET",
+                            "IMP",
+                            "BaA",
+                            "Wat",
+                            "PIS"),
+                    cnames = c("Cropland",
+                               "Forest",
+                               "Shrub",
+                               "Wetland",
+                               "Impervious",
+                               "Bare Land",
+                               "Water",
+                               "Ice-Snow")))
+
+class_stat <- merge(class_stat,ctypes, by = "value")
 class_stat <- class_stat[,c(4,5,3)]
 
 class_stat <- class_stat[order(class_stat[,1], class_stat[,2]), ]
 rownames(class_stat) <- 1:nrow(class_stat)
+
+class_stat <- merge(class_stat,classnames, by = "ctype")
 
 # Each pixel is 503.7628 m^2, to ha
 class_stat$area <- (class_stat[,3]*503.7628)*0.0001
 
 class_stat %>%
   filter(ctype %in% c("FST")) %>%
-  ggplot(aes(x = Year, y = area, group = ctype , colour = ctype)) +
+  ggplot(aes(x = Year, y = area, group = cnames , colour = cnames)) +
   labs(title = "Landsat Land Classification", x = "Year", y = "Area (ha)") +
-  geom_line()
+  theme_minimal() +
+  theme(legend.position = "bottom", legend.title = element_blank()) +
+  geom_line(linewidth = 1.2)
 
 class_stat %>%
   filter(ctype %in% c("CRP","SHR","WET","IMP","BaA","Wat","PIS")) %>%
-  ggplot(aes(x = Year, y = area, group = ctype , colour = ctype)) +
+  ggplot(aes(x = Year, y = area, group = cnames , colour = cnames)) +
   labs(title = "Landsat Land Classification", x = "Year", y = "Area (ha)") +
-  geom_line()
+  theme_minimal() +
+  theme(legend.position = "bottom", legend.title = element_blank())  +
+  geom_line(linewidth = 1.2)
 
 
 ## ALOS Forest/Non-Forest Annual Mosaic
+
+Nakazdli_sf_ext <- ext(Nakazdli_sf)
+
 rstac::stac_search(
   q = stac_source,
   collections = "alos-fnf-mosaic",
-  bbox = c(ECOSEC_NEL_ext[1],
-           ECOSEC_NEL_ext[2],
-           ECOSEC_NEL_ext[3],
-           ECOSEC_NEL_ext[4]),
+  bbox = c(as.numeric(Nakazdli_sf_ext[1]),
+           as.numeric(Nakazdli_sf_ext[2]),
+           as.numeric(Nakazdli_sf_ext[3]),
+           as.numeric(Nakazdli_sf_ext[4])),
   limit = 999
 ) |> 
   rstac::get_request()
 
+
 alos_palsar_band_mapping <- get_stac_data(
   aoi = Nakazdli_sf,
-  start_date = "2017-01-01",
-  end_date = "2020-12-31",
+  start_date = "2019-01-01",
+  end_date = "2019-12-31",
   asset_names='C',
   stac_source="https://planetarycomputer.microsoft.com/api/stac/v1",
   collection = "alos-fnf-mosaic",
-  composite_function = NULL,
+  #composite_function = NULL,
   output_filename = paste0(here::here("Outputs","Rasters","ALOS"),"/ALOS.tif")
 )
 
+ALOS20 <- rast(dir(paste0(here::here("Outputs","Rasters","ALOS")),
+               full.names=TRUE,
+               pattern="ALOS_2020-01-01T000000Z.tif"))
+
+ALOS20b <- crop(ALOS20, Nakazdli, mask=TRUE)
 
 ```
 
