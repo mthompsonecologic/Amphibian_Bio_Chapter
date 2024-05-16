@@ -177,23 +177,85 @@ df <- data.frame(
 ```
 # Nak'azdli Whut'en Territory
 
-Loading a shapefile of Nak'azdli Whut'en territory to calculate statistics for this part of the study area.
+In this chunk I loaded a shapefile of Nak'azdli Whut'en territory to calculate disturbance statistics for this part of the study area. The first part looks into the planetary computer catalogue of 10m Annual Land Use Land Cover (9-class) V2 (https://planetarycomputer.microsoft.com/dataset/io-lulc-annual-v02). I reduced in size to the Nechako Lowlands to help with the processing speed and to focus in on an area that I am more familiar with from field work and research I have done locally on amphibian populations in forest harvest areas. The average model prediction accuracy for this product is 75% and it does not do an effective job of identifying harvest areas.
+
+Next, a Landsat product (Zhang et al. 2023) is studied for the entire Nak'azdli Whut'en territory. This is an interesting product that has had a lot of model checks with global validation sets. The paper goes into further details with the key conclusion that this product can be used to model trends in land cover change with >80% accuracy depending on the land cover type, some that are easier to detect. The fine classification value IDs are listed in Zhang et al. (2021) and the authors use a nine classification system as follows:
+
+This code adapts the fine into the nine by classifying a range:
+
+Range 10-20 = CRP: cropland
+10	Rainfed cropland
+11	Herbaceous cover
+12	Tree or shrub cover (Orchard)
+20	Irrigated cropland
+
+Range 50-90 = FST: forest
+50	Evergreen broadleaved forest
+60	Deciduous broadleaved forest
+61	Open deciduous broadleaved forest (0.15<fc<0.4)
+62	Closed deciduous broadleaved forest (fc>0.4)
+70	Evergreen needle-leaved forest
+71	Open evergreen needle-leaved forest (0.15< fc <0.4)
+72	Closed evergreen needle-leaved forest (fc >0.4)
+80	Deciduous needle-leaved forest
+81	Open deciduous needle-leaved forest (0.15< fc <0.4)
+82	Closed deciduous needle-leaved forest (fc >0.4)
+90	Mixed leaf forest (broadleaved and needle-leaved)
+
+Range 120-153 = SHR: shrubland
+120	Shrubland
+121	Evergreen shrubland
+122	Deciduous shrubland
+130	Grassland
+140	Lichens and mosses
+150	Sparse vegetation (fc<0.15)
+152	Sparse shrubland (fc<0.15)
+153	Sparse herbaceous (fc<0.15)
+
+Range 180 = WET: wetlands
+180	Wetlands
+
+Range 190 = IMP: impervious surfaces;
+190	Impervious
+
+Range 200-202 = BaA: bare areas;
+200	Bare areas
+201	Consolidated bare areas
+202	Unconsolidated bare areas
+
+Range 210 = Wat: water body;
+210	Water body
+
+Range 220-250 = PIS: permanent ice and snow.
+220	Permanent ice and snow
+250	Filled value
+
+
+##References
+Zhang, X., Liu, L., Chen, X., Gao, Y., Xie, S., & Mi, J. (2021). GLC_FCS30: Global land-cover product with fine classification system at 30&thinsp;m using time-series Landsat imagery. Earth System Science Data, 13(6), 2753–2776. https://doi.org/10.5194/essd-13-2753-2021
+
+Zhang, X., Zhao, T., Xu, H., Liu, W., Wang, J., Chen, X., & Liu, L. (2023). GLC_FCS30D: The first global 30-m land-cover dynamic monitoring product with a fine classification system from 1985 to 2022 using dense time-series Landsat imagery and continuous change-detection method. Earth System Science Data Discussions, 1–32. https://doi.org/10.5194/essd-2023-320
+
 
 ```{r Nakazdli, echo=FALSE, eval=FALSE}
 
-
-Nakazdli <- vect(paste0(here("Inputs","Shapefiles"), "/Nakazdli_Territory.shp"))
+Nakazdli <- vect(paste0(here("Inputs","Shapefiles"),
+                        "/Nakazdli_Territory.shp"))
 
 Nakazdli <- terra::project(Nakazdli,
                           "EPSG:4326")
+Nakazdli_sf <- sf::st_as_sf(Nakazdli)
 
-ECOSEC <- vect(paste0(here("Inputs","Shapefiles","ERC_ECOSECTIONS_SP"), "/ERC_ECOSEC_polygon.shp"))
+ECOSEC <- vect(paste0(here("Inputs",
+                           "Shapefiles",
+                           "ERC_ECOSECTIONS_SP"),
+                      "/ERC_ECOSEC_polygon.shp"))
 
 # Select the Nechako Lowland Ecosection:
 
 ECOSEC_NEL <- ECOSEC[3]
 ECOSEC_NEL  <- terra::project(ECOSEC_NEL,
-                          "EPSG:4326")
+                          "EPSG:4326", threads=n.cores)
 ECOSEC_NEL_c <- crop(ECOSEC_NEL, Nakazdli)
 ECOSEC_NEL_c_sf <- sf::st_as_sf(ECOSEC_NEL_c)
 ECOSEC_NEL_ext <- as.numeric(as.matrix(ext(ECOSEC_NEL_c_sf)))
@@ -224,13 +286,11 @@ S2LC9V2 <- get_stac_data(
   output_filename = paste0(here::here("Outputs","Rasters"),"/S2LC9V2_x.tif")
 )
 
-
 S2LC9V2 <- dir(paste0(here::here("Outputs","Rasters")),
                full.names=TRUE,
                pattern="*\\d.tif")
 
 S2LC9V2 <- lapply(S2LC9V2, rast)
-
 S2LC9V2_f = lapply(S2LC9V2,as.factor)
 
 S2LC9V2_sds <- terra::sds(S2LC9V2_f)
@@ -252,7 +312,6 @@ S2LC9V2_sds <- terra::sds(citlist)
 #0 No Data #1 Water #2 Trees #4 Flooded vegetation
 #5 Crops #7 Built area #8 Bare ground #9 Snow/ice
 #10 Clouds #11 Rangeland
-
 
 S2LC9V2_17f <- freq(S2LC9V2_sds[1])
 S2LC9V2_18f <- freq(S2LC9V2_sds[2])
@@ -292,10 +351,99 @@ for(i in 1:length(names(GLC_FCS30Dr))){
 
 GLC_FCS30D_sds <- terra::sds(citlist)
 
+GLC_FCS30D_sds_f = lapply(GLC_FCS30D_sds,as.factor)
+
+#1 Range 10-20 = CRP: cropland
+#2 Range 50-92 = FST: forest
+#3 Range 120-153 = SHR: shrubland
+#4 Range 180 = WET: wetlands
+#5 Range 190 = IMP: impervious surfaces;
+#6 Range 200-202 = BaA: bare areas;
+#7 Range 210 = Wat: water body;
+#8 Range 220-250 = PIS: permanent ice and snow.
+
+cat_mat <- matrix(nrow=8, ncol=3)
+cat_mat[1,] <- c(0, 20, 1)
+cat_mat[2,] <- c(50, 92, 2)
+cat_mat[3,] <- c(119, 153, 3)
+cat_mat[4,] <- c(180, 187, 4)
+cat_mat[5,] <- c(189, 190, 5)
+cat_mat[6,] <- c(199, 202, 6)
+cat_mat[7,] <- c(209, 210, 7)
+cat_mat[8,] <- c(219, 250, 8)
+
+GLC_FCS30D_sds_fc <- lapply(GLC_FCS30D_sds_f,
+                            function(x){classify(x,
+                                                 cat_mat,
+                                                 include.lowest=TRUE,
+                                                 brackets=TRUE)})
+GLC_FCS30D_sds_fc <- lapply(GLC_FCS30D_sds_fc,as.factor)
+GLC_FCS30D_sds_fc <- sds(GLC_FCS30D_sds_fc)
+
+citlist <- vector(mode='list',length=length(GLC_FCS30D_sds_fc))
+for(i in 1:length(names(GLC_FCS30D_sds_fc))){
+        citlist[[i]] <- terra::project(GLC_FCS30D_sds_fc[i],
+                                       "epsg:32610",
+                                       threads=n.cores)
+    }
+
+GLC_FCS30D_sds_fc <- terra::sds(citlist)
+
+years <- c(2000:2022)
+class_stat <- list()
+for(i in 1:length(GLC_FCS30D_sds_fc)){
+  class_stat[[i]] <- cbind(freq(GLC_FCS30D_sds_fc[i]),Year=years[i])
+}
+
+class_stat <- as.data.frame(data.table::rbindlist(class_stat))
+
+ctypes <- as.data.frame(cbind(value=as.numeric(c(1:8)),
+                              ctype=c("CRP","FST","SHR","WET","IMP","BaA","Wat","PIS")))
+
+class_stat <- merge(class_stat,ctypes, by  = "value")
+class_stat <- class_stat[,c(4,5,3)]
+
+class_stat <- class_stat[order(class_stat[,1], class_stat[,2]), ]
+rownames(class_stat) <- 1:nrow(class_stat)
+
+# Each pixel is 503.7628 m^2, to ha
+class_stat$area <- (class_stat[,3]*503.7628)*0.0001
+
+class_stat %>%
+  filter(ctype %in% c("FST")) %>%
+  ggplot(aes(x = Year, y = area, group = ctype , colour = ctype)) +
+  labs(title = "Landsat Land Classification", x = "Year", y = "Area (ha)") +
+  geom_line()
+
+class_stat %>%
+  filter(ctype %in% c("CRP","SHR","WET","IMP","BaA","Wat","PIS")) %>%
+  ggplot(aes(x = Year, y = area, group = ctype , colour = ctype)) +
+  labs(title = "Landsat Land Classification", x = "Year", y = "Area (ha)") +
+  geom_line()
 
 
-GLC_FCS30Dm <- merge(GLC_FCS30Dr)
-GLC_FCS30Dc <- crop(GLC_FCS30Dm,Nakazdli,mask=TRUE)
+## ALOS Forest/Non-Forest Annual Mosaic
+rstac::stac_search(
+  q = stac_source,
+  collections = "alos-fnf-mosaic",
+  bbox = c(ECOSEC_NEL_ext[1],
+           ECOSEC_NEL_ext[2],
+           ECOSEC_NEL_ext[3],
+           ECOSEC_NEL_ext[4]),
+  limit = 999
+) |> 
+  rstac::get_request()
+
+alos_palsar_band_mapping <- get_stac_data(
+  aoi = Nakazdli_sf,
+  start_date = "2017-01-01",
+  end_date = "2020-12-31",
+  asset_names='C',
+  stac_source="https://planetarycomputer.microsoft.com/api/stac/v1",
+  collection = "alos-fnf-mosaic",
+  composite_function = NULL,
+  output_filename = paste0(here::here("Outputs","Rasters","ALOS"),"/ALOS.tif")
+)
 
 
 ```
