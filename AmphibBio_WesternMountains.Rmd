@@ -80,6 +80,12 @@ library(tmap)
 
 n.cores <- future::availableCores() - 1
 
+## BiodiversityR requires the following:
+
+install.packages(pkgs=c("BiodiversityR", "vegan","Rcmdr", "MASS", "mgcv","cluster", "RODBC", "rpart", "effects", "multcomp","ellipse", "maptree", "sp", "splancs", "spatial","akima", "nnet", "dismo", "raster", "rgdal",
+"bootstrap", "PresenceAbsence","maxlike", "gbm", "randomForest", "gam", "earth", "mda","kernlab", "e1071", "glmnet", "sem", "rgl", "relimp","lmtest", "leaps", "Hmisc", "colorspace", "aplpack","abind", "XLConnect", "car", "markdown", "knitr","geosphere", "maptools", "rgeos", "ENMeval", "red"),dependencies=c("Depends", "Imports"))
+
+library(BiodiversityR)
 ```
 
 ## Spatial data
@@ -255,7 +261,7 @@ ECOSEC <- vect(paste0(here("Inputs",
 
 ECOSEC_NEL <- ECOSEC[3]
 ECOSEC_NEL  <- terra::project(ECOSEC_NEL,
-                          "EPSG:4326", threads=n.cores)
+                          "EPSG:4326")
 ECOSEC_NEL_c <- crop(ECOSEC_NEL, Nakazdli)
 ECOSEC_NEL_c_sf <- sf::st_as_sf(ECOSEC_NEL_c)
 ECOSEC_NEL_ext <- as.numeric(as.matrix(ext(ECOSEC_NEL_c_sf)))
@@ -344,7 +350,7 @@ GLC_FCS30D <- c(paste0(here("Inputs","Rasters","Nak'azdli"), "/GLC_FCS30D_200020
 GLC_FCS30Dr <- vrt(GLC_FCS30D)
 
 
-citlist <- vector(mode='list',length=length(S2LC9V2_sds))
+citlist <- vector(mode='list',length=length(GLC_FCS30D))
 for(i in 1:length(names(GLC_FCS30Dr))){
         citlist[[i]] <- crop(GLC_FCS30Dr[[i]], Nakazdli, mask=TRUE)
     }
@@ -3506,7 +3512,9 @@ AMTI_map <- tm_shape(AMTI_montane_RFmod) +
 tm_layout(legend.position= c("right", "top")) +
 tm_compass(type="arrow", position=c(0.70, 1.00))+
 tm_scalebar(text.size=.8, position=c(0.04, 0.08)) + tm_shape(st_as_sf(Montane))+
-tm_borders(lwd=2) 
+tm_borders(lwd=2)
+
+## Looking more closely
 
 AMTI_montane_RFmod2 <- AMTI_montane_RFmod
 as.numeric(AMTI_montane_RFmod2)
@@ -3517,15 +3525,14 @@ rclmat <- matrix(m, ncol=3, byrow=TRUE)
 AMTI_montane_RFmod2 <- classify(AMTI_montane_RFmod2, rclmat, include.lowest=TRUE)
        
 #AMTI >0.9 only
-AMTI_map2 <- tm_shape(AMTI_montane_RFmod2) +
-  tm_raster(style = "equal",
-            title = "AMTI SDM", palette="green4") +
-tm_layout(legend.show=FALSE) +
-  tm_layout(title = "AMTI (>0.95)", title.position=c(0.60, .95)) +
-tm_compass(type="arrow", position=c(0.03, 0.80))+
-tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
-tm_borders(lwd=2) +  tm_shape(st_as_sf(AMTI)) + tm_symbols(shape = 20, size=0.1, col="red")
-
+#AMTI_map2 <- tm_shape(AMTI_montane_RFmod2) +
+#  tm_raster(style = "equal",
+#            title = "AMTI SDM", palette="green4") +
+#tm_layout(legend.show=FALSE) +
+#  tm_layout(title = "AMTI (>0.95)", title.position=c(0.60, .95)) +
+#tm_compass(type="arrow", position=c(0.03, 0.80))+
+#tm_scale_bar(position = c(0.05, .02), text.size=.8) + tm_shape(st_as_sf(Montane))+
+#tm_borders(lwd=2) +  tm_shape(st_as_sf(AMTI)) + tm_symbols(shape = 20, size=0.1, col="red")
 
 
 ## Explanatory Raster Maps
@@ -3761,11 +3768,15 @@ writeRaster(RASY_clim,
             paste0(here("Inputs","Rasters","MaxEnt"),"/RASY_climate.tif"),
             overwrite=TRUE)
             
-            
+AMMA_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),"/AMMA_climate.tif"))
+ANBO_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),"/ANBO_climate.tif"))
+RALU_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),"/RALU_climate.tif"))
+RASY_clim <- rast(paste0(here("Inputs","Rasters","MaxEnt"),"/RASY_climate.tif"))
+
 ## Mapping it together
 
 AMMA_map2 <- tm_shape(AMMA_RFmod) +
-  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_raster(style = "cont", palette = "RdYlGn", midpoint = NA) +
   tm_layout(legend.show= FALSE, title="AMMA") +
   tm_shape(st_as_sf(Boreal_Montane)) +
   tm_borders(lwd=2)
@@ -3889,7 +3900,7 @@ AMMA_clim_LY5_map <- tm_shape(AMMA_clim_LY5) +
   tm_borders(lwd=2)
 
 AMMA_map3 <- tm_shape(AMMA_RFmod) +
-  tm_raster(style = "cont", palette = "RdYlGn") +
+  tm_raster(style = "cont", palette = "RdYlGn", midpoint = NA) +
   tm_layout(legend.show= FALSE, main.title="Random Forest - This Chapter", main.title.size=0.6) +
   tm_shape(st_as_sf(Boreal_Montane)) +
   tm_borders(lwd=2)
@@ -3901,7 +3912,7 @@ AMMA_clim_map2 <- tm_shape(AMMA_clim) +
   tm_borders(lwd=2)
 AMMA_Pred_maps <-  tmap_arrange(AMMA_clim_LY5_map, AMMA_map3, AMMA_clim_map2, ncol = 3)
 
-tmap_save(Full_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMMA_MaxEnt_comp.jpeg"),height = 8.27, width = 11.69, dpi=300)
+tmap_save(AMMA_Pred_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_AMMA_MaxEnt_comp.jpeg"),height = 8.27, width = 11.69, dpi=300)
 
 #Plethodon
 
@@ -3943,6 +3954,8 @@ PLVE_clim_map70 <- tm_shape(PLVE_clim_70) +
   tm_borders(lwd=2)
 
 PLVE_clim_maps <-  tmap_arrange(PLVE_clim_map, PLVE_clim_map50, PLVE_clim_map70, ncol = 3)
+
+tmap_save(PLVE_clim_maps, filename = paste0(here("Outputs","Figures"),"/ABx(x)_Ch 3_Figx.x_PLVE_clim_maps.jpeg"),height = 8.27, width = 11.69, dpi=300)
 
 
 # AMontanusRF
